@@ -1,6 +1,9 @@
 # Mac temp files
 .DS_Store
 
+# PyCHARM
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
