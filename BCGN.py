@@ -13,7 +13,7 @@ def main():
     np.random.seed(0)
 
     # Main parameters
-    TOL = 1e-6
+    TOL = 1e-15
     K_MAX = 100
 
     # Loop over test functions
@@ -37,64 +37,108 @@ def main():
         plt.ylabel('Residual Norm')
         plt.legend(legend)
         plt.grid()
-        plt.draw()
+        plt.show()
 
     plt.show()
 
 """ Random Block-Coordinate Gauss-Newton """
-def RBCGN(r, J, x, k_max, tol, p, alg='tr'):
+def RBCGN(r, J, x, k_max, tol, p, alg='tr', redraw=False, plotFailed=True, dynamic=False):
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
     def gradf(z): return J(z).T.dot(r(z))
 
-    # Output
+    # Plotting
     hl, = plt.semilogy(0,f(x),linewidth=2)
-    print '++++ Iteration 0 ++++'
-    print 'x:', x, 'f(x):', f(x)
-    print '||gradf(x)||_2: %.2e' % linalg.norm(gradf(x)), '||gradf(x)||_inf: %.2e' % linalg.norm(gradf(x),np.inf)
+
     # Set initial trust region radius
+    delta = None
     if alg == 'tr':
         delta = linalg.norm(gradf(x))/10
 
     k = 0
+    pk = 0
     n = x.size
+    accepted = True
     while f(x) > tol and k < k_max:
 
         # Randomly select blocks
-        S = np.random.permutation(np.arange(n))[0:p]
-        U_S = np.zeros((n,p))
-        for j in range(0,p):
-            U_S[S[j],j] = 1
+        if p < n and redraw or accepted:
+            S = np.random.permutation(np.arange(n))[0:p]
+            U_S = np.zeros((n,p))
+            for j in range(0,p):
+                U_S[S[j],j] = 1
+        else:
+            U_S = np.eye(n)
 
         # Assemble block-reduced matrices
         J_S = J(x).dot(U_S)
         gradf_S = J_S.T.dot(r(x))
 
-        if alg == 'tr':
-            x, delta = trust_region(f, x, U_S, J_S, gradf_S, delta)
-        else:
-            x, alpha = line_search(f, x, U_S, J_S, gradf_S)
-        k += 1
+        # Dynamic: increase block size
+        if p < n and dynamic and linalg.norm(gradf_S) < ma.sqrt(tol):
+            print 'Gradient small, increasing block size to: ', p+1
+            while True:
+                j = np.random.choice(n,1)
+                if not np.any(U_S[j,:]): # newp row has all zeros
+                    break
+            U_j = np.zeros((n,1))
+            U_j[j,:] = 1
+            U_S = np.hstack((U_S,U_j))
+            J_S = J(x).dot(U_S)
+            gradf_S = J_S.T.dot(r(x))
+            p += 1
 
         # Output
-        update_line(hl,k,f(x))
-        print '++++ Iteration', k, '++++'
-        print 'x:', x, 'f(x):', f(x)
-        print '||gradf(x)||_2: %.2e' % linalg.norm(gradf(x)), '||gradf(x)||_inf: %.2e' % linalg.norm(gradf(x),np.inf)
+        monitor(k, r, x, f, delta, alg, accepted, gradf, gradf_S)
+
         if alg == 'tr':
-            print 'delta: %.2e' % delta
+            x, delta, accepted = trust_region(f, x, U_S, J_S, gradf_S, delta)
         else:
-            print 'alpha: %.2e' % alpha
+            x, delta = line_search(f, x, U_S, J_S, gradf_S)
+        k += 1
+
+        # Plotting
+        if plotFailed or accepted:
+            pk += 1
+            update_line(hl,pk,f(x))
+
+    # Output
+    monitor(k, r, x, f, delta, alg, accepted, gradf)
 
     return x
+
+""" Output Monitoring Information """
+def monitor(k, r, x, f, delta, alg, accepted, gradf, gradf_S=None):
+
+    print '++++ Iteration', k, '++++'
+    if alg == 'tr':
+        print 'delta: %.2e' % delta
+        if not accepted: print "Step Failed!"
+    elif delta is not None:
+        print 'alpha: %.2e' % delta
+
+    nr = linalg.norm(r(x))
+    ng = linalg.norm(gradf(x))
+    nJrr = ng / nr
+    if gradf_S is not None:
+        ng_S = linalg.norm(gradf_S)
+        nJ_Srr = ng_S / nr
+
+    print 'x:', x, 'f(x):', f(x)
+    print '||r(x)||: %.2e' % nr, '||gradf(x)||: %.2e' % ng,
+    if  gradf_S is not None: print '||gradf_S(x)||: %.2e' % ng_S
+    print "||J'r||/||r||: %.2e" % nJrr,
+    if gradf_S is not None: print "||J_S'r||/||r||: %.2e" % nJ_Srr
+
+    if gradf_S is None: print
 
 """ Gauss-Newton Line Search """
 def line_search(f, x, U_S, J_S, gradf_S):
 
     # Linesearch parameters
-    ALPHA_MAX = 10  # > 0
-    C = 0.01  # in (0,1)
+    ALPHA_MAX = 5  # > 0
+    C = 0.5  # in (0,1)
     RHO = 0.5  # in (0,1)
 
     # Regularization parameters
@@ -103,10 +147,11 @@ def line_search(f, x, U_S, J_S, gradf_S):
 
     # Solve block-reduced normal equations to find search direction
     s_S = search_direction(J_S, gradf_S, KAPPA_TOL, SIGMA)
+    s = U_S.dot(s_S)
 
     # Do backtracking line search to find step length
-    alpha = b_Armijo(ALPHA_MAX, RHO, C, s_S, x, f, gradf_S, U_S)
-    x = x + alpha * U_S.dot(s_S)
+    alpha = b_Armijo(ALPHA_MAX, RHO, C, s, s_S, x, f, gradf_S)
+    x = x + alpha * s
 
     return x, alpha
 
@@ -130,10 +175,9 @@ def search_direction(J_S, gradf_S, kappa_tol, sigma):
     return s_S
 
 """ Backtracking-Armijo Line Search """
-def b_Armijo(alpha, rho, c, s_S, x, f, gradf_S, U_S):
+def b_Armijo(alpha, rho, c, s, s_S, x, f, gradf_S):
     fx = f(x)
     delta = c*np.dot(gradf_S,s_S)
-    s = U_S.dot(s_S)
     while f(x + alpha*s) > fx + alpha*delta:
         alpha = rho*alpha
     return alpha
@@ -162,8 +206,10 @@ def trust_region(f, x, U_S, J_S, gradf_S, delta):
     rho = (f(x) - f(x+s))/Delta_m
 
     # Accept trial point
+    accepted = False
     if rho >= ETA1:
         x = x + s
+        accepted = True
 
     # Update trust region radius
     if rho < ETA1:
@@ -171,14 +217,13 @@ def trust_region(f, x, U_S, J_S, gradf_S, delta):
     elif rho >= ETA2:
         delta *= GAMMA2
 
-    return x, delta
+    return x, delta, accepted
 
 """ Trust Region Subproblem """
 def trs(J_S, gradf_S, delta, meps, leps, Ke):
     p = J_S.shape[1]
 
     # QR on J_S
-    lamda = None
     _, R_S = linalg.qr(J_S, mode='economic')
 
     # J_S'J_S full rank
