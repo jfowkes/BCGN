@@ -17,13 +17,14 @@ def main():
     K_MAX = 100
 
     # Loop over test functions
-    funcs = ['PowellSingular', 'BroydenTridiagonal', 'Osborne1', 'Osborne2']
+    funcs = ['PowellSingular', 'BroydenTridiagonal', 'Osborne1', 'Chebyquad', 'Osborne2']
     for func in funcs:
         mod = __import__('MGH', fromlist=[func])
         cls = getattr(mod, func)
         f = cls()
 
         # Run RBCGN
+        plt.figure(funcs.index(func)+1)
         print '====== ' + f.name + ' ======'
         legend = []
         for p in range(1,f.n+1):
@@ -36,24 +37,25 @@ def main():
         plt.ylabel('Residual Norm')
         plt.legend(legend)
         plt.grid()
-        plt.show()
+        plt.draw()
+
+    plt.show()
 
 """ Random Block-Coordinate Gauss-Newton """
 def RBCGN(r, J, x, k_max, tol, p, alg='tr'):
 
     # Full function and gradient
-    f = lambda z: 0.5 * np.dot(r(z), r(z))
-    gradf = lambda z: J(z).T.dot(r(z))
+    def f(z): return 0.5 * np.dot(r(z), r(z))
+    def gradf(z): return J(z).T.dot(r(z))
 
     # Output
     hl, = plt.semilogy(0,f(x),linewidth=2)
     print '++++ Iteration 0 ++++'
     print 'x:', x, 'f(x):', f(x)
-    print 'gradf(x):', gradf(x)
-
+    print '||gradf(x)||_2: %.2e' % linalg.norm(gradf(x)), '||gradf(x)||_inf: %.2e' % linalg.norm(gradf(x),np.inf)
     # Set initial trust region radius
     if alg == 'tr':
-        delta = 10
+        delta = linalg.norm(gradf(x))/10
 
     k = 0
     n = x.size
@@ -79,7 +81,7 @@ def RBCGN(r, J, x, k_max, tol, p, alg='tr'):
         update_line(hl,k,f(x))
         print '++++ Iteration', k, '++++'
         print 'x:', x, 'f(x):', f(x)
-        print '||gradf(x)||_2: %.2e' % np.linalg.norm(gradf(x)), '||gradf(x)||_inf: %.2e' % np.linalg.norm(gradf(x),ord=np.inf)
+        print '||gradf(x)||_2: %.2e' % linalg.norm(gradf(x)), '||gradf(x)||_inf: %.2e' % linalg.norm(gradf(x),np.inf)
         if alg == 'tr':
             print 'delta: %.2e' % delta
         else:
@@ -95,8 +97,12 @@ def line_search(f, x, U_S, J_S, gradf_S):
     C = 0.01  # in (0,1)
     RHO = 0.5  # in (0,1)
 
+    # Regularization parameters
+    KAPPA_TOL = 1e8
+    SIGMA = 1e-8
+
     # Solve block-reduced normal equations to find search direction
-    s_S = search_direction(J_S, gradf_S)
+    s_S = search_direction(J_S, gradf_S, KAPPA_TOL, SIGMA)
 
     # Do backtracking line search to find step length
     alpha = b_Armijo(ALPHA_MAX, RHO, C, s_S, x, f, gradf_S, U_S)
@@ -105,19 +111,15 @@ def line_search(f, x, U_S, J_S, gradf_S):
     return x, alpha
 
 """ Search Direction from Normal Equations"""
-def search_direction(J_S, gradf_S):
+def search_direction(J_S, gradf_S, kappa_tol, sigma):
     p = J_S.shape[1]
-
-    # Regularization parameter
-    KAPPA_TOL = 1e8
-    SIGMA = 1e-8
 
     # Solve block-reduced normal equations to find search direction
     kappa = np.linalg.cond(J_S)
     print 'k(J_S): %.2e' % kappa
-    if kappa >= KAPPA_TOL:
+    if kappa >= kappa_tol:
         print 'WARNING: Jacobian ill-conditioned!!'
-        _, R_S = linalg.qr(np.vstack((J_S, ma.sqrt(SIGMA) * np.eye(p))), mode='economic')
+        _, R_S = linalg.qr(np.vstack((J_S, ma.sqrt(sigma) * np.eye(p))), mode='economic')
         t_S = linalg.solve_triangular(R_S.T, -gradf_S, lower=True)
         s_S = linalg.solve_triangular(R_S, t_S)
     else:
