@@ -42,7 +42,7 @@ def main():
     plt.show()
 
 """ Random Block-Coordinate Gauss-Newton """
-def RBCGN(r, J, x, k_max, tol, p, alg='tr', redraw=False, plotFailed=True, dynamic=False):
+def RBCGN(r, J, x, k_max, tol, p, alg='tr', redraw=False, plotFailed=True, dynamic=False, gaussSouthwell=False):
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
@@ -62,9 +62,16 @@ def RBCGN(r, J, x, k_max, tol, p, alg='tr', redraw=False, plotFailed=True, dynam
     accepted = True
     while f(x) > tol and k < k_max:
 
+        # Evaluate full gradient for Gauss-Southwell
+        if gaussSouthwell:
+            ngradf = np.fabs(gradf(x))
+        
         # Randomly select blocks
         if p < n and redraw or accepted:
-            S = np.random.permutation(np.arange(n))[0:p]
+            if gaussSouthwell:
+                S = np.argpartition(ngradf, -p)[-p:]
+            else:
+                S = np.random.permutation(np.arange(n))[0:p]
             U_S = np.zeros((n,p))
             for j in range(0,p):
                 U_S[S[j],j] = 1
@@ -78,13 +85,15 @@ def RBCGN(r, J, x, k_max, tol, p, alg='tr', redraw=False, plotFailed=True, dynam
         # Dynamic: increase block size
         if p < n and dynamic and linalg.norm(gradf_S) < ma.sqrt(tol):
             print 'Gradient small, increasing block size to: ', p+1
-            while True:
-                j = np.random.choice(n,1)
-                if not np.any(U_S[j,:]): # newp row has all zeros
-                    break
-            U_j = np.zeros((n,1))
-            U_j[j,:] = 1
-            U_S = np.hstack((U_S,U_j))
+            S = np.nonzero(U_S)[0]
+            inds = np.setdiff1d(np.arange(n),S)
+            if gaussSouthwell:
+                ind = np.argmax(ngradf[inds])    
+            else:
+                ind = np.random.choice(inds,1)
+            U_ind = np.zeros((n,1))
+            U_ind[ind,:] = 1
+            U_S = np.hstack((U_S,U_ind))
             J_S = J(x).dot(U_S)
             gradf_S = J_S.T.dot(r(x))
             p += 1
