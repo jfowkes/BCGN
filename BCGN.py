@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as linalg
 import math as ma
-
+import cutermgr
 
 """ Main function """
 def main():
@@ -17,22 +17,23 @@ def main():
     K_MAX = 100
 
     # Loop over test functions
-    funcs = ['PowellSingular', 'BroydenTridiagonal', 'Osborne1', 'Chebyquad', 'Osborne2']
+    funcs = ['COOLHANS', 'PowellSingular', 'BroydenTridiagonal', 'Osborne1', 'Chebyquad', 'Osborne2']
     for func in funcs:
-        mod = __import__('MGH', fromlist=[func])
-        cls = getattr(mod, func)
-        f = cls()
+
+        # Get test function
+        r, J, x0 = get_test_problem(func)
+        n = x0.size
 
         # Run RBCGN
         plt.figure(funcs.index(func)+1)
-        print '====== ' + f.name + ' ======'
+        print '====== ' + func + ' ======'
         legend = []
-        for p in range(1,f.n+1):
+        for p in range(1,n+1):
             legend += ['Block Size: ' + str(p)]
             print
             print '======',legend[p-1], '======'
-            RBCGN(f.r,f.jacobian,f.initial,K_MAX,TOL,p)
-        plt.title('RBCGN - ' + f.name + ' function (' + str(f.n) + 'D)')
+            RBCGN(r,J,x0,K_MAX,TOL,p)
+        plt.title('RBCGN - ' + func + ' function (' + str(n) + 'D)')
         plt.xlabel('Iterations')
         plt.ylabel('Residual Norm')
         plt.legend(legend)
@@ -292,6 +293,28 @@ def quadeq(a, b, c):
    x2 = (-b - ma.sqrt(b * b - 4 * a * c)) / (2 * a)
    return x1, x2
 
+
+""" Test Problem Selector """
+def get_test_problem(name):
+
+    # TODO: make this more efficient
+    if name.isupper(): # CUTEst problem
+        if not cutermgr.isCached(name):
+            cutermgr.prepareProblem(name)
+        prob = cutermgr.importProblem(name)
+        def r(x): return prob.cons(x)
+        def J(x): return prob.cons(x,True)[1]
+        x0 = prob.getinfo()['x']
+
+    else: # More-Garbow-Hillstrom
+        mod = __import__('MGH', fromlist=[name])
+        cls = getattr(mod, name)
+        prob = cls()
+        r = prob.r
+        J = prob.jacobian
+        x0 = prob.initial
+
+    return r, J, x0
 
 """ Real-time plotting """
 def update_line(hl, x_data, y_data):
