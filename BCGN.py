@@ -17,7 +17,7 @@ def main():
     K_MAX = 100
 
     # Loop over test functions
-    funcs = ['COOLHANS', 'PowellSingular', 'BroydenTridiagonal', 'Osborne1', 'Chebyquad', 'Osborne2']
+    funcs = ['PowellSingular', 'BroydenTridiagonal', 'Osborne1', 'Chebyquad', 'Osborne2', 'COOLHANS']
     for func in funcs:
 
         # Get test function
@@ -38,12 +38,13 @@ def main():
         plt.ylabel('Residual Norm')
         plt.legend(legend)
         plt.grid()
+        #plt.savefig('figures/'+func+'')
         plt.show()
 
     plt.show()
 
 """ Random Block-Coordinate Gauss-Newton """
-def RBCGN(r, J, x, k_max, tol, p, alg='tr', redraw=False, plotFailed=True, dynamic=False, gaussSouthwell=False):
+def RBCGN(r, J, x, k_max, tol, p, alg='tr', redrawFailed=False, plotFailed=True, dynamicUpdate=False, gaussSouthwell=False):
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
@@ -68,7 +69,7 @@ def RBCGN(r, J, x, k_max, tol, p, alg='tr', redraw=False, plotFailed=True, dynam
             ngradf = np.fabs(gradf(x))
         
         # Randomly select blocks
-        if p < n and redraw or accepted:
+        if redrawFailed or accepted:
             if gaussSouthwell:
                 S = np.argpartition(ngradf, -p)[-p:]
             else:
@@ -76,15 +77,13 @@ def RBCGN(r, J, x, k_max, tol, p, alg='tr', redraw=False, plotFailed=True, dynam
             U_S = np.zeros((n,p))
             for j in range(0,p):
                 U_S[S[j],j] = 1
-        else:
-            U_S = np.eye(n)
 
         # Assemble block-reduced matrices
         J_S = J(x).dot(U_S)
         gradf_S = J_S.T.dot(r(x))
 
         # Dynamic: increase block size
-        if p < n and dynamic and linalg.norm(gradf_S) < ma.sqrt(tol):
+        if dynamicUpdate and p < n and linalg.norm(gradf_S) < ma.sqrt(tol):
             print 'Gradient small, increasing block size to: ', p+1
             S = np.nonzero(U_S)[0]
             inds = np.setdiff1d(np.arange(n),S)
