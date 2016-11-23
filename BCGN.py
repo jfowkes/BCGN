@@ -18,20 +18,25 @@ def main():
 
     # Main parameters
     TOL = 1e-15
-    K_MAX = 1000
+    K_MAX = 200
+    SAVEFIG = False
 
     # Loop over test functions
-    #funcs = ['PowellSingular', 'BroydenTridiagonal', 'Osborne1', 'Chebyquad', 'Osborne2', 'COOLHANS', 'AIRCRFTA']
-    funcs = ['Osborne1','COOLHANS']
+    #funcs = ['BroydenTridiagonal', 'Chebyquad', 'Osborne2', 'AIRCRFTA']
+    #kappas_GS = [0.99]*len(funcs)
+    #kappas_RN = [0.9]*len(funcs)
+    funcs = ['PowellSingular','Osborne1','COOLHANS']
+    kappas_GS = [0.9,0.999,0.99]
+    kappas_RN = [0.9999,0.99,0.9]
     for func in funcs:
 
         # Fix RNG seed
         np.random.seed(0)
 
         # Get test function
-        r, J, xinit = get_test_problem(func)
+        r, J, x0 = get_test_problem(func)
 
-        n = xinit.size
+        n = x0.size
         xopt = minimizers[func]
 
         # Plotting
@@ -47,9 +52,10 @@ def main():
             legend += ['Block Size ' + str(p)]
             print '\n======',legend[p-1], '======'
             GS = False
-            update = 'none'
             algorithm='tr'
-            RBCGN(r,J,xinit,xopt,K_MAX,TOL,p,fig,update=update,algorithm=algorithm,gaussSouthwell=GS)
+            if GS: kappa = kappas_GS[funcs.index(func)]
+            else: kappa = kappas_RN[funcs.index(func)]
+            RBCGN(r,J,x0,xopt,K_MAX,TOL,p,fig,kappa,algorithm=algorithm,gaussSouthwell=GS)
 
         #minimizers[func] = xopt
 
@@ -63,24 +69,22 @@ def main():
         ax2.set_ylabel('Norm Gradient')
         ax2.grid(True)
         ax3.set_xlabel('Iterations')
-        ax3.set_ylabel('Norm Minimizer')
+        ax3.set_ylabel('Block Size')
         ax3.grid(True)
         plt.gcf().set_tight_layout(True)
-        if GS:
-            sfix = '_GS'
-        else:
+        if SAVEFIG:
             sfix = ''
-        dir = 'figures/'+algorithm.upper()+'/'+update+sfix
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-        plt.savefig(dir+'/'+func)
+            if GS: sfix = '_GS'
+            dir = 'figures/'+algorithm.upper()+'/'+str(kappa)+sfix
+            if not os.path.exists(dir): os.makedirs(dir)
+            plt.savefig(dir+'/'+func)
         plt.show()
 
     #pickle.dump(minimizers,open('minimizers.ser','wb'),protocol=-1)
 
 
 """ Random Block-Coordinate Gauss-Newton """
-def RBCGN(r, J, xinit, xopt, k_max, tol, p, fig, algorithm='tr', redrawFailed=True, plotFailed=True, update='none', gaussSouthwell=False):
+def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFailed=True, plotFailed=True, gaussSouthwell=False):
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
@@ -90,18 +94,19 @@ def RBCGN(r, J, xinit, xopt, k_max, tol, p, fig, algorithm='tr', redrawFailed=Tr
     ax1 = fig.add_subplot(1,3,1)
     ax2 = fig.add_subplot(1,3,2)
     ax3 = fig.add_subplot(1,3,3)
-    hl1, = ax1.semilogy(0,f(xinit),nonposy='clip',linewidth=2)
-    hl2, = ax2.semilogy(0,linalg.norm(gradf(xinit)),nonposy='clip',linewidth=2)
-    hl3, = ax3.semilogy(0,linalg.norm(xinit-xopt),nonposy='clip',linewidth=2)
+    hl1, = ax1.semilogy(0,f(x0),nonposy='clip',linewidth=2)
+    hl2, = ax2.semilogy(0,linalg.norm(gradf(x0)),nonposy='clip',linewidth=2)
+    #hl3, = ax3.semilogy(0,linalg.norm(xinit-xopt),nonposy='clip',linewidth=2)
+    hl3, = ax3.plot(0, p, linewidth=2)
 
     # Set initial trust region radius
     delta = None
     if algorithm == 'tr':
-        delta = linalg.norm(gradf(xinit))/10
+        delta = linalg.norm(gradf(x0))/10
 
     k = 0
     pk = 0
-    x = xinit
+    x = x0
     n = x.size
     accepted = True
     while f(x) > tol and k < k_max:
@@ -122,98 +127,74 @@ def RBCGN(r, J, xinit, xopt, k_max, tol, p, fig, algorithm='tr', redrawFailed=Tr
 
         # Assemble block-reduced matrices
         J_S = J(x).dot(U_S)
-        gradf_S = J_S.T.dot(r(x))
+        rx = r(x)
+        gradf_S = J_S.T.dot(rx)
 
-        # Increase block size dynamically or monotonically
-        if p < n and update == 'monotonic' and k % 5 == 0 or update == 'dynamic' and linalg.norm(gradf_S) < ma.sqrt(tol):
-            print update, '- increasing block size to:', p+1
+        # Output
+        monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S)
+
+        # Solve trust region subproblem
+        if algorithm == 'tr':
+            s_S = trs(J_S, gradf_S, delta)
+        else:
+            s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
+
+        # Loop tolerance
+        Js_S = J_S.dot(s_S)
+        Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
+        stopping_rule = -Delta_m + (1-kappa)/2*linalg.norm(rx)**2 > 0
+
+        # Iteratively refine block size
+        p_prev = p
+        while p != n and stopping_rule:
+
+            # Increase block size
+            print 'Increasing block size to:', p+1
             if gaussSouthwell:
                 ind = sorted_nginds[p]
             else:
                 S = np.nonzero(U_S)[0]
                 inds = np.setdiff1d(np.arange(n), S)
-                ind = np.random.choice(inds,1)
-            U_ind = np.zeros((n,1))
-            U_ind[ind,:] = 1
-            U_S = np.hstack((U_S,U_ind))
+                ind = np.random.choice(inds, 1)
+            U_ind = np.zeros((n, 1))
+            U_ind[ind, :] = 1
+            U_S = np.hstack((U_S, U_ind))
             J_S = J(x).dot(U_S)
-            gradf_S = J_S.T.dot(r(x))
+            rx = r(x)
+            gradf_S = J_S.T.dot(rx)
             p += 1
 
-        # Output
-        monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S)
+            # Output
+            monitor(k, r, x, f, delta, algorithm, True, gradf, gradf_S)
 
-        x0 = x
-        delta0 = delta
-        if algorithm == 'tr':
-            s_S, _ = trs(J_S, gradf_S, delta) # Solve trust region subproblem
-            x, delta, accepted = tr_update(f, x, s_S, U_S, J_S, gradf_S, delta)
-        else:
-            s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
-            x = x + delta * U_S.dot(s_S)
-
-        # Iteratively refine block size
-        if p < n and 'refine' in update:
-            KAPPA = 0.5
-
-            p_prev = p
-            loop_tol = True
-            while p != n and loop_tol:
-
-                # Increase block size
-                print update, '- increasing block size to:', p + 1
-                if gaussSouthwell:
-                    ind = sorted_nginds[p]
-                else:
-                    S = np.nonzero(U_S)[0]
-                    inds = np.setdiff1d(np.arange(n), S)
-                    ind = np.random.choice(inds, 1)
-                U_ind = np.zeros((n, 1))
-                U_ind[ind, :] = 1
-                U_S = np.hstack((U_S, U_ind))
-                J_S = J(x0).dot(U_S)
-                r0 = r(x0)
-                gradf_S = J_S.T.dot(r0)
-                p += 1
-
-                # Output
-                monitor(k, r, x0, f, delta0, algorithm, True, gradf, gradf_S)
-
-                # Solve trust region subproblem
-                if algorithm == 'tr':
-                    s_S, lamda = trs(J_S, gradf_S, delta0)
-                else:
-                    lamda = 0
-                    s_S, delta = line_search(f, x0, U_S, J_S, gradf_S)
-
-                # Loop tolerance
-                # FIXME: don't recompute all these, get them from trust_region function
-                if update == 'refine1A':
-                    ng_S = linalg.norm(gradf_S)
-                    loop_tol = linalg.norm(J_S.T.dot(J_S).dot(s_S) + gradf_S + lamda*s_S) > min(KAPPA,ma.sqrt(ng_S))*ng_S
-                elif update == 'refine1B':
-                    loop_tol = linalg.norm(J_S.T.dot(J_S).dot(s_S) + gradf_S + lamda*s_S) > min(KAPPA,linalg.norm(s_S))
-                elif update == 'refine2':
-                    Js_S = J_S.dot(s_S)
-                    loop_tol = 0.5*np.dot(Js_S,Js_S) + np.dot(gradf_S,s_S) + (1-KAPPA)/2*linalg.norm(r0)**2 > 0
-                else: # 'refine_res'
-                    raise ValueError('Unknown refinement type.')
-
-            # Update trust region
+            # Solve trust region subproblem
             if algorithm == 'tr':
-                x, delta, accepted = tr_update(f, x0, s_S, U_S, J_S, gradf_S, delta0)
+                s_S = trs(J_S, gradf_S, delta)
             else:
-                x = x + delta * U_S.dot(s_S)
+                s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
 
-            p = p_prev
+            # Loop tolerance
+            Js_S = J_S.dot(s_S)
+            Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
+            stopping_rule = -Delta_m + (1-kappa)/2*linalg.norm(rx)**2 > 0
+
+        # Update trust region
+        if algorithm == 'tr':
+            x, delta, accepted = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta)
+        else:
+            x = x + delta*U_S.dot(s_S)
+
+        update_line(ax3, hl3, k+1, p)
+        p = p_prev
         k += 1
+
 
         # Plotting
         if plotFailed or accepted:
             pk += 1
             update_line(ax1,hl1,pk,f(x))
             update_line(ax2,hl2,pk,linalg.norm(gradf(x)))
-            update_line(ax3,hl3,pk,linalg.norm(x-xopt))
+            #update_line(ax3,hl3,pk,linalg.norm(x-xopt))
 
     # Output
     monitor(k, r, x, f, delta, algorithm, accepted, gradf)
@@ -221,7 +202,7 @@ def RBCGN(r, J, xinit, xopt, k_max, tol, p, fig, algorithm='tr', redrawFailed=Tr
     return x
 
 """ Trust Region Update """
-def tr_update(f, x, s_S, U_S, J_S, gradf_S, delta, update='none'):
+def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update = 'none'):
     accepted = False
 
     # Trust Region parameters
@@ -234,8 +215,6 @@ def tr_update(f, x, s_S, U_S, J_S, gradf_S, delta, update='none'):
     DELTA_MAX = 1e150
 
     # Evaluate sufficient decrease
-    Js_S = J_S.dot(s_S)
-    Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
     s = U_S.dot(s_S)
     rho = (f(x) - f(x+s))/Delta_m
 
@@ -291,7 +270,7 @@ def trs(J_S, gradf_S, delta):
 
         # Trust region inactive: interior solution
         if ns_S < delta:
-            return s_S, lamda
+            return s_S
         # Else trust region active
 
     # J_S'J_S singular: lamda_1 = 0
@@ -310,7 +289,7 @@ def trs(J_S, gradf_S, delta):
         if ns_S < delta:
             u_S = linalg.solve_triangular(R_S, np.zeros(p)) # since Q.T*zeros(m+p)=zeros(p)
             alpha1, alpha2 = quadeq(np.dot(u_S, u_S), 2 * np.dot(s_S, u_S), np.dot(s_S, s_S) - delta ** 2) # Find quadratic roots
-            return s_S + alpha1 * u_S, lamda # FIXME: choosing alpha at random?
+            return s_S + alpha1 * u_S # FIXME: choosing alpha at random?
         # Else trust region active
 
     # Trust region active: newton iteration
@@ -327,7 +306,7 @@ def trs(J_S, gradf_S, delta):
         s_S = linalg.solve_triangular(R_S, t_S)
         ns_S = linalg.norm(s_S)
 
-    return s_S, lamda
+    return s_S
 
 """ Return roots of quadratic equation """
 def quadeq(a, b, c):
