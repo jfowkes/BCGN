@@ -13,75 +13,85 @@ import os
 def main():
 
     # Load test function minimizers
-    #minimizers = {}
     minimizers = pickle.load(open('minimizers.ser','rb'))
 
     # Main parameters
     TOL = 1e-15
     K_MAX = 200
+    GS = False
+    ALG = 'tr'
+
+    # Plotting parameters
+    PLOT = False
     SAVEFIG = False
 
     # Loop over test functions
-    #funcs = ['BroydenTridiagonal', 'Chebyquad', 'Osborne2', 'AIRCRFTA']
-    #kappas_GS = [0.99]*len(funcs)
-    #kappas_RN = [0.9]*len(funcs)
-    funcs = ['PowellSingular','Osborne1','COOLHANS']
-    kappas_GS = [0.9,0.999,0.99]
-    kappas_RN = [0.9999,0.99,0.9]
-    for func in funcs:
+    kappas = [1.,0.9999,0.999,0.99,0.9,0.8]
+    funcs = ['BroydenTridiagonal', 'Chebyquad', 'Osborne2', 'AIRCRFTA','PowellSingular','Osborne1','COOLHANS']
+    metrics = ['accuracy','revals','budget']
+    measure = np.zeros((len(funcs),len(kappas),11,len(metrics)))
+    labels = []
+    for ifunc, func in enumerate(funcs):
+        for ikappa, kappa in enumerate(kappas):
+            print '\n====== Kappa: ' + str(kappa) + ' ======'
+            labels += ['Kappa: ' + str(kappa)]
 
-        # Fix RNG seed
-        np.random.seed(0)
+            # Fix RNG seed
+            np.random.seed(0)
 
-        # Get test function
-        r, J, x0 = get_test_problem(func)
+            # Get test function
+            r, J, x0 = get_test_problem(func)
+            n = x0.size
+            xopt = minimizers[func]
 
-        n = x0.size
-        xopt = minimizers[func]
+            # Plotting
+            if PLOT:
+                fig = plt.figure(ifunc + 1,figsize=(24,6))
+                ax1 = fig.add_subplot(1,3,1)
+                ax2 = fig.add_subplot(1,3,2)
+                ax3 = fig.add_subplot(1,3,3)
+            else:
+                fig = None
 
-        # Plotting
-        fig = plt.figure(funcs.index(func) + 1,figsize=(24,6))
-        ax1 = fig.add_subplot(1,3,1)
-        ax2 = fig.add_subplot(1,3,2)
-        ax3 = fig.add_subplot(1,3,3)
+            # Run RBCGN
+            print '====== ' + func + ' ======'
+            legend = []
+            for p in range(1,n+1):
+                legend += ['Block Size ' + str(p)]
+                print '\n======',legend[p-1], '======'
+                acc,revals,budget = RBCGN(r,J,x0,xopt,K_MAX,TOL,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
+                measure[ifunc,ikappa,p-1,0] = acc
+                measure[ifunc,ikappa,p-1,1] = revals
+                measure[ifunc,ikappa,p-1,2] = budget
 
-        # Run RBCGN
-        print '====== ' + func + ' ======'
-        legend = []
-        for p in range(1,n+1):
-            legend += ['Block Size ' + str(p)]
-            print '\n======',legend[p-1], '======'
-            GS = False
-            algorithm='tr'
-            if GS: kappa = kappas_GS[funcs.index(func)]
-            else: kappa = kappas_RN[funcs.index(func)]
-            RBCGN(r,J,x0,xopt,K_MAX,TOL,p,fig,kappa,algorithm=algorithm,gaussSouthwell=GS)
+            # Plotting
+            if PLOT:
+                plt.suptitle('RBCGN - ' + func + ' function (' + str(n) + 'D)',fontsize=13)
+                ax1.legend(legend)
+                ax1.set_xlabel('Iterations')
+                ax1.set_ylabel('Norm Residual')
+                ax1.grid(True)
+                ax2.set_xlabel('Iterations')
+                ax2.set_ylabel('Norm Gradient')
+                ax2.grid(True)
+                ax3.set_xlabel('Iterations')
+                ax3.set_ylabel('Block Size')
+                ax3.grid(True)
+                plt.gcf().set_tight_layout(True)
+                if SAVEFIG:
+                    sfix = ''
+                    if GS: sfix = '_GS'
+                    dir = 'figures/'+ALG.upper()+'/'+str(kappa)+sfix
+                    if not os.path.exists(dir): os.makedirs(dir)
+                    plt.savefig(dir+'/'+func)
+                plt.show()
 
-        #minimizers[func] = xopt
-
-        # Plotting
-        plt.suptitle('RBCGN - ' + func + ' function (' + str(n) + 'D)',fontsize=13)
-        ax1.legend(legend)
-        ax1.set_xlabel('Iterations')
-        ax1.set_ylabel('Norm Residual')
-        ax1.grid(True)
-        ax2.set_xlabel('Iterations')
-        ax2.set_ylabel('Norm Gradient')
-        ax2.grid(True)
-        ax3.set_xlabel('Iterations')
-        ax3.set_ylabel('Block Size')
-        ax3.grid(True)
-        plt.gcf().set_tight_layout(True)
-        if SAVEFIG:
-            sfix = ''
-            if GS: sfix = '_GS'
-            dir = 'figures/'+algorithm.upper()+'/'+str(kappa)+sfix
-            if not os.path.exists(dir): os.makedirs(dir)
-            plt.savefig(dir+'/'+func)
-        plt.show()
-
-    #pickle.dump(minimizers,open('minimizers.ser','wb'),protocol=-1)
-
+    # Plot performance profiles
+    for imetr, metr in enumerate(metrics):
+        for p in range(4):
+            fig_title = metr + ' - block size: ' + str(p+1)
+            save_dir = 'figures/perf_profiles/' + ALG  + ("_GS" if GS else "") + '/' + str(p+1) + '/'
+            performance_profile(measure[:,:,p,imetr],labels,fig_title,metr,save_dir)
 
 """ Random Block-Coordinate Gauss-Newton """
 def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFailed=True, plotFailed=True, gaussSouthwell=False):
@@ -91,13 +101,13 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFaile
     def gradf(z): return J(z).T.dot(r(z))
 
     # Plotting
-    ax1 = fig.add_subplot(1,3,1)
-    ax2 = fig.add_subplot(1,3,2)
-    ax3 = fig.add_subplot(1,3,3)
-    hl1, = ax1.semilogy(0,f(x0),nonposy='clip',linewidth=2)
-    hl2, = ax2.semilogy(0,linalg.norm(gradf(x0)),nonposy='clip',linewidth=2)
-    #hl3, = ax3.semilogy(0,linalg.norm(xinit-xopt),nonposy='clip',linewidth=2)
-    hl3, = ax3.plot(0, p, linewidth=2)
+    if fig is not None:
+        ax1 = fig.add_subplot(1,3,1)
+        ax2 = fig.add_subplot(1,3,2)
+        ax3 = fig.add_subplot(1,3,3)
+        hl1, = ax1.semilogy(0,f(x0),nonposy='clip',linewidth=2)
+        hl2, = ax2.semilogy(0,linalg.norm(gradf(x0)),nonposy='clip',linewidth=2)
+        hl3, = ax3.plot(0, p, linewidth=2)
 
     # Set initial trust region radius
     delta = None
@@ -109,6 +119,7 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFaile
     x = x0
     n = x.size
     accepted = True
+    budget = 0
     while f(x) > tol and k < k_max:
 
         # Evaluate full gradient for Gauss-Southwell
@@ -131,7 +142,7 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFaile
         gradf_S = J_S.T.dot(rx)
 
         # Output
-        monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S)
+        #monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S)
 
         # Solve trust region subproblem
         if algorithm == 'tr':
@@ -145,13 +156,13 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFaile
         stopping_rule = -Delta_m + (1-kappa)/2*linalg.norm(rx)**2 > 0
 
         # Iteratively refine block size
-        p_prev = p
-        while p != n and stopping_rule:
+        p_in = p
+        while p_in != n and stopping_rule:
 
             # Increase block size
-            print 'Increasing block size to:', p+1
+            #print 'Increasing block size to:', p_in+1
             if gaussSouthwell:
-                ind = sorted_nginds[p]
+                ind = sorted_nginds[p_in]
             else:
                 S = np.nonzero(U_S)[0]
                 inds = np.setdiff1d(np.arange(n), S)
@@ -162,10 +173,10 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFaile
             J_S = J(x).dot(U_S)
             rx = r(x)
             gradf_S = J_S.T.dot(rx)
-            p += 1
+            p_in += 1
 
             # Output
-            monitor(k, r, x, f, delta, algorithm, True, gradf, gradf_S)
+            #monitor(k, r, x, f, delta, algorithm, True, gradf, gradf_S)
 
             # Solve trust region subproblem
             if algorithm == 'tr':
@@ -184,22 +195,23 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFaile
         else:
             x = x + delta*U_S.dot(s_S)
 
-        update_line(ax3, hl3, k+1, p)
-        p = p_prev
         k += 1
 
-
         # Plotting
-        if plotFailed or accepted:
+        if (fig is not None) and (plotFailed or accepted):
             pk += 1
             update_line(ax1,hl1,pk,f(x))
             update_line(ax2,hl2,pk,linalg.norm(gradf(x)))
-            #update_line(ax3,hl3,pk,linalg.norm(x-xopt))
+            update_line(ax3, hl3, k + 1, p_in)
+
+        if accepted:
+            budget += p_in
 
     # Output
-    monitor(k, r, x, f, delta, algorithm, accepted, gradf)
+    #monitor(k, r, x, f, delta, algorithm, accepted, gradf)
 
-    return x
+    # Return metrics
+    return ma.fabs(f(x)-f(xopt)), r.calls, budget
 
 """ Trust Region Update """
 def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update = 'none'):
@@ -317,6 +329,7 @@ def quadeq(a, b, c):
     except RuntimeWarning: # failed step: delta too large
         x1 = 0
         x2 = 0
+    warnings.resetwarnings()
     return x1, x2
 
 """ Line Search """
@@ -368,6 +381,43 @@ def b_Armijo(U_S, s_S, x, f, gradf_S):
         alpha *= RHO
     return alpha
 
+
+""" Calculate and Plot Performance Profile """
+def performance_profile(measure,solver_labels,fig_title,fig_name,save_dir):
+    '''
+    :param measure: prob x solver array,
+     smallest values assumed to be the best
+    '''
+    pn = measure.shape[0]
+    sn = measure.shape[1]
+
+    ratio = np.zeros((pn,sn))
+    for p in range(pn):
+        for s in range(sn):
+            ratio[p,s] = measure[p,s]/min(measure[p,:])
+
+    def profile(s,t):
+        prob = 0
+        for p in range(pn):
+            if ratio[p,s] <= t:
+                prob += 1
+        return prob/pn
+
+    t = np.linspace(1,20)
+    prof = np.vectorize(profile)
+    plt.figure(100)
+    plt.clf()
+    for s in range(sn):
+        y = prof(s,t)
+        plt.plot(t,y,'-',linewidth=2,clip_on=False)
+    plt.grid()
+    plt.xlabel('Performance Ratio')
+    plt.legend(solver_labels,loc='lower right')
+    plt.title(fig_title,fontsize=13)
+
+    if not os.path.exists(save_dir): os.makedirs(save_dir)
+    plt.savefig(save_dir + '/' + fig_name)
+
 """ Output Monitoring Information """
 def monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S=None):
 
@@ -412,7 +462,20 @@ def get_test_problem(name):
         J = prob.jacobian
         xinit = prob.initial
 
-    return r, J, xinit
+    # Define decorator for counting function calls
+    # TODO: add option to disable this
+    def count_calls(fn):
+        def wrapper(*args, **kwargs):
+            wrapper.calls += 1
+            return fn(*args, **kwargs)
+
+        wrapper.calls = 0
+        wrapper.__name__ = fn.__name__
+        return wrapper
+    @count_calls
+    def rw(x): return r(x)
+
+    return rw, J, xinit
 
 """ Real-time plotting """
 def update_line(ax, hl, x_data, y_data):
