@@ -94,7 +94,7 @@ def main():
             performance_profile(measure[:,:,p,imetr],labels,fig_title,metr,save_dir)
 
 """ Random Block-Coordinate Gauss-Newton """
-def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFailed=True, plotFailed=True, gaussSouthwell=False):
+def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=True, gaussSouthwell=False):
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
@@ -127,17 +127,17 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFaile
             sorted_nginds = np.argsort(np.fabs(gradf(x)))[::-1]
         
         # Randomly select blocks
-        if redrawFailed or accepted:
-            if gaussSouthwell:
-                S = sorted_nginds[0:p]
-            else:
-                S = np.random.permutation(np.arange(n))[0:p]
-            U_S = np.zeros((n,p))
-            for j in range(0,p):
-                U_S[S[j],j] = 1
+        if gaussSouthwell:
+            S = sorted_nginds[0:p]
+        else:
+            S = np.random.permutation(np.arange(n))[0:p]
+        U_S = np.zeros((n,p))
+        for j in range(0,p):
+            U_S[S[j],j] = 1
 
         # Assemble block-reduced matrices
-        J_S = J(x).dot(U_S)
+        Jx = J(x)
+        J_S = Jx.dot(U_S)
         rx = r(x)
         gradf_S = J_S.T.dot(rx)
 
@@ -170,8 +170,7 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFaile
             U_ind = np.zeros((n, 1))
             U_ind[ind, :] = 1
             U_S = np.hstack((U_S, U_ind))
-            J_S = J(x).dot(U_S)
-            rx = r(x)
+            J_S = Jx.dot(U_S)
             gradf_S = J_S.T.dot(rx)
             p_in += 1
 
@@ -196,16 +195,14 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', redrawFaile
             x = x + delta*U_S.dot(s_S)
 
         k += 1
+        budget += p_in
 
         # Plotting
         if (fig is not None) and (plotFailed or accepted):
             pk += 1
             update_line(ax1,hl1,pk,f(x))
             update_line(ax2,hl2,pk,linalg.norm(gradf(x)))
-            update_line(ax3, hl3, k + 1, p_in)
-
-        if accepted:
-            budget += p_in
+            update_line(ax3,hl3,k + 1,p_in)
 
     # Output
     #monitor(k, r, x, f, delta, algorithm, accepted, gradf)
@@ -266,9 +263,6 @@ def trs(J_S, gradf_S, delta):
     LEPS = 1e-5
     KE = 0.01
 
-    # QR on J_S
-    _, R_S = linalg.qr(J_S, mode='economic')
-
     # J_S'J_S full rank
     if np.linalg.matrix_rank(J_S) == p:
 
@@ -276,6 +270,7 @@ def trs(J_S, gradf_S, delta):
         lamda = 0
 
         # Solve normal equations to find search direction
+        _, R_S = linalg.qr(J_S, mode='economic')
         t_S = linalg.solve_triangular(R_S.T, -gradf_S, lower=True)
         s_S = linalg.solve_triangular(R_S, t_S)
         ns_S = linalg.norm(s_S)
