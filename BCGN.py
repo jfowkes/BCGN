@@ -12,12 +12,9 @@ import os
 """ Main function """
 def main():
 
-    # Load test function minimizers
-    minimizers = pickle.load(open('minimizers.ser','rb'))
-
     # Main parameters
-    TOL = 1e-15
-    K_MAX = 200
+    TOL = 1e-5
+    K_MAX = 100
     GS = False
     ALG = 'tr'
 
@@ -26,23 +23,23 @@ def main():
     SAVEFIG = False
 
     # Loop over test functions
-    kappas = [1.,0.9999,0.999,0.99,0.9,0.8]
-    funcs = ['BroydenTridiagonal', 'Chebyquad', 'Osborne2', 'AIRCRFTA','PowellSingular','Osborne1','COOLHANS']
+    kappas = [1, 0.9] # TODO: what kappa?
+    funcs = ['ARGTRIG','ARTIF','ARWHDNE','BDVALUES','BRATU2D','BRATU3D','BROWNALE','BROYDN3D','BROYDNBD','CBRATU2D']
+    args = [{'N':200},{'N':502},{'N':500},{'NDP':102},{'P':22},{'P':10},{'N':200},{'N':1000},{'N':1000},{'P':40}]
     metrics = ['accuracy','revals','budget']
-    measure = np.zeros((len(funcs),len(kappas),11,len(metrics)))
-    labels = []
+    labels = ['Fixed 2-block','Fixed half-block','Fixed GN','K:0.9 2-block','K:0.9 half-block']
+    measure = np.zeros((len(funcs), 5, len(metrics)))
     for ifunc, func in enumerate(funcs):
         for ikappa, kappa in enumerate(kappas):
             print '\n====== Kappa: ' + str(kappa) + ' ======'
-            labels += ['Kappa: ' + str(kappa)]
 
             # Fix RNG seed
             np.random.seed(0)
 
             # Get test function
-            r, J, x0 = get_test_problem(func)
+            r, J, x0 = get_test_problem(func, args[ifunc])
             n = x0.size
-            xopt = minimizers[func]
+            xopt = np.zeros(n)
 
             # Plotting
             if PLOT:
@@ -56,13 +53,18 @@ def main():
             # Run RBCGN
             print '====== ' + func + ' ======'
             legend = []
-            for p in range(1,n+1):
+            if kappa == 1:
+                blocks = [2, int(round(n/2)), n]
+            else:
+                blocks = [2, int(round(n/2))]
+            for ip, p in enumerate(blocks):
                 legend += ['Block Size ' + str(p)]
-                print '\n======',legend[p-1], '======'
+                print '\n======',legend[ip], '======'
                 acc,revals,budget = RBCGN(r,J,x0,xopt,K_MAX,TOL,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
-                measure[ifunc,ikappa,p-1,0] = acc
-                measure[ifunc,ikappa,p-1,1] = revals
-                measure[ifunc,ikappa,p-1,2] = budget
+                measure[ifunc,3*ikappa+ip,0] = acc
+                measure[ifunc,3*ikappa+ip,1] = revals
+                measure[ifunc,3*ikappa+ip,2] = budget
+                pickle.dump(measure, open('measure.ser', 'wb'), protocol=-1)
 
             # Plotting
             if PLOT:
@@ -88,10 +90,9 @@ def main():
 
     # Plot performance profiles
     for imetr, metr in enumerate(metrics):
-        for p in range(4):
-            fig_title = metr + ' - block size: ' + str(p+1)
-            save_dir = 'figures/perf_profiles/' + ALG  + ("_GS" if GS else "") + '/' + str(p+1) + '/'
-            performance_profile(measure[:,:,p,imetr],labels,fig_title,metr,save_dir)
+            fig_title = metr
+            save_dir = 'figures/perf_profiles/' + ALG  + ("_GS" if GS else "") +  '/'
+            performance_profile(measure[:,:,imetr],labels,fig_title,metr,save_dir)
 
 """ Random Block-Coordinate Gauss-Newton """
 def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=True, gaussSouthwell=False):
@@ -120,7 +121,7 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=
     n = x.size
     accepted = True
     budget = 0
-    while f(x) > tol and k < k_max:
+    while f(x) > tol and linalg.norm(gradf(x)) > tol and k < k_max:
 
         # Evaluate full gradient for Gauss-Southwell
         if gaussSouthwell:
@@ -196,6 +197,7 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=
 
         k += 1
         budget += p_in
+        print 'Iteration:', k, 'max block size:', p_in
 
         # Plotting
         if (fig is not None) and (plotFailed or accepted):
@@ -439,12 +441,12 @@ def monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S=None):
     if gradf_S is None: print
 
 """ Test Problem Selector """
-def get_test_problem(name):
+def get_test_problem(name, sifParams):
 
     # TODO: make this more efficient
     if name.isupper(): # CUTEst problem
         if not cutermgr.isCached(name):
-            cutermgr.prepareProblem(name)
+            cutermgr.prepareProblem(name,sifParams=sifParams)
         prob = cutermgr.importProblem(name)
         def r(x): return prob.cons(x)
         def J(x): return prob.cons(x,True)[1]
