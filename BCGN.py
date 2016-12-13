@@ -23,11 +23,11 @@ def main():
     SAVEFIG = False
 
     # Loop over test functions
-    kappas = [1, 0.9] # TODO: what kappa?
+    kappas = [1, 0.8] # TODO: what kappa?
     funcs = ['ARGTRIG','ARTIF','ARWHDNE','BDVALUES','BRATU2D','BRATU3D','BROWNALE','BROYDN3D','BROYDNBD','CBRATU2D']
-    args = [{'N':200},{'N':502},{'N':500},{'NDP':102},{'P':22},{'P':10},{'N':200},{'N':1000},{'N':1000},{'P':40}]
-    metrics = ['accuracy','revals','budget']
-    labels = ['Fixed 2-block','Fixed half-block','Fixed GN','K:0.9 2-block','K:0.9 half-block']
+    args = [{'N':100},{'N':100},{'N':100},{'NDP':102},{'P':10},{'P':5},{'N':100},{'N':100},{'N':100},{'P':7}]
+    metrics = ['accuracy','revals','budget','budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
+    labels = ['Fixed 2-block','Fixed half-block','Fixed GN','K:0.8 2-block','K:0.8 half-block']
     measure = np.zeros((len(funcs), 5, len(metrics)))
     for ifunc, func in enumerate(funcs):
         for ikappa, kappa in enumerate(kappas):
@@ -39,7 +39,7 @@ def main():
             # Get test function
             r, J, x0 = get_test_problem(func, args[ifunc])
             n = x0.size
-            xopt = np.zeros(n)
+            fxopt = 0
 
             # Plotting
             if PLOT:
@@ -60,10 +60,14 @@ def main():
             for ip, p in enumerate(blocks):
                 legend += ['Block Size ' + str(p)]
                 print '\n======',legend[ip], '======'
-                acc,revals,budget = RBCGN(r,J,x0,xopt,K_MAX,TOL,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
+                acc,revals,budget,tau_budget = RBCGN(r,J,x0,fxopt,K_MAX,TOL,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
                 measure[ifunc,3*ikappa+ip,0] = acc
                 measure[ifunc,3*ikappa+ip,1] = revals
                 measure[ifunc,3*ikappa+ip,2] = budget
+                measure[ifunc,3*ikappa+ip,3] = tau_budget[0]
+                measure[ifunc,3*ikappa+ip,4] = tau_budget[1]
+                measure[ifunc,3*ikappa+ip,5] = tau_budget[2]
+                measure[ifunc,3*ikappa+ip,6] = tau_budget[3]
                 pickle.dump(measure, open('measure.ser', 'wb'), protocol=-1)
 
             # Plotting
@@ -95,7 +99,7 @@ def main():
             performance_profile(measure[:,:,imetr],labels,fig_title,metr,save_dir)
 
 """ Random Block-Coordinate Gauss-Newton """
-def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=True, gaussSouthwell=False):
+def RBCGN(r, J, x0, fxopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=True, gaussSouthwell=False):
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
@@ -110,6 +114,10 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=
         hl2, = ax2.semilogy(0,linalg.norm(gradf(x0)),nonposy='clip',linewidth=2)
         hl3, = ax3.plot(0, p, linewidth=2)
 
+    # Metrics
+    budget = 0
+    tau_budget = np.inf*np.ones(4)
+
     # Set initial trust region radius
     delta = None
     if algorithm == 'tr':
@@ -120,7 +128,6 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=
     x = x0
     n = x.size
     accepted = True
-    budget = 0
     while f(x) > tol and linalg.norm(gradf(x)) > tol and k < k_max:
 
         # Evaluate full gradient for Gauss-Southwell
@@ -199,6 +206,11 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=
         budget += p_in
         print 'Iteration:', k, 'max block size:', p_in
 
+        # Accuracy-based metrics
+        for itau, tau in enumerate([1e-1,1e-3,1e-5,1e-7]):
+            if np.isinf(tau_budget[itau]) and f(x) <= tau*f(x0) + (1-tau)*fxopt:
+                tau_budget[itau] = budget
+
         # Plotting
         if (fig is not None) and (plotFailed or accepted):
             pk += 1
@@ -210,7 +222,10 @@ def RBCGN(r, J, x0, xopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=
     #monitor(k, r, x, f, delta, algorithm, accepted, gradf)
 
     # Return metrics
-    return ma.fabs(f(x)-f(xopt)), r.calls, budget
+    if k == k_max: # failed to solve problem
+        return np.inf, np.inf, np.inf, tau_budget
+    else: # solved problem
+        return ma.fabs(f(x)-fxopt), r.calls, budget, tau_budget
 
 """ Trust Region Update """
 def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update = 'none'):
@@ -409,6 +424,7 @@ def performance_profile(measure,solver_labels,fig_title,fig_name,save_dir):
         plt.plot(t,y,'-',linewidth=2,clip_on=False)
     plt.grid()
     plt.xlabel('Performance Ratio')
+    plt.ylabel('% Problems Solved')
     plt.legend(solver_labels,loc='lower right')
     plt.title(fig_title,fontsize=13)
 
