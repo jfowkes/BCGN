@@ -1,5 +1,7 @@
 """ Block-Coordinate Gauss-Newton """
 from __future__ import division
+from cycler import cycler
+from palettable.colorbrewer import qualitative
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as linalg
@@ -23,13 +25,14 @@ def main():
     SAVEFIG = False
 
     # Loop over test functions
-    kappas = [1, 0.8] # TODO: what kappa?
+    kappas = [1, 0.99, 0.9, 0.8] # TODO: what kappa?
     funcs = ['ARGTRIG','ARTIF','ARWHDNE','BDVALUES','BRATU2D','BRATU3D','BROWNALE','BROYDN3D','BROYDNBD','CBRATU2D']
     args = [{'N':100},{'N':100},{'N':100},{'NDP':102},{'P':10},{'P':5},{'N':100},{'N':100},{'N':100},{'P':7}]
     metrics = ['accuracy','revals','budget','budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
-    labels = ['Fixed 2-block','Fixed half-block','Fixed GN','K:0.8 2-block','K:0.8 half-block']
-    measure = np.zeros((len(funcs), 5, len(metrics)))
+    measure = np.zeros((len(funcs), 2*len(kappas)+1, len(metrics)))
     for ifunc, func in enumerate(funcs):
+        labels = measure.shape[1]*['']
+        lkappas = len(kappas)
         for ikappa, kappa in enumerate(kappas):
             print '\n====== Kappa: ' + str(kappa) + ' ======'
 
@@ -61,14 +64,16 @@ def main():
                 legend += ['Block Size ' + str(p)]
                 print '\n======',legend[ip], '======'
                 acc,revals,budget,tau_budget = RBCGN(r,J,x0,fxopt,K_MAX,TOL,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
-                measure[ifunc,3*ikappa+ip,0] = acc
-                measure[ifunc,3*ikappa+ip,1] = revals
-                measure[ifunc,3*ikappa+ip,2] = budget
-                measure[ifunc,3*ikappa+ip,3] = tau_budget[0]
-                measure[ifunc,3*ikappa+ip,4] = tau_budget[1]
-                measure[ifunc,3*ikappa+ip,5] = tau_budget[2]
-                measure[ifunc,3*ikappa+ip,6] = tau_budget[3]
+                measure[ifunc,lkappas*ip+ikappa,0] = acc
+                measure[ifunc,lkappas*ip+ikappa,1] = revals
+                measure[ifunc,lkappas*ip+ikappa,2] = budget
+                measure[ifunc,lkappas*ip+ikappa,3] = tau_budget[0]
+                measure[ifunc,lkappas*ip+ikappa,4] = tau_budget[1]
+                measure[ifunc,lkappas*ip+ikappa,5] = tau_budget[2]
+                measure[ifunc,lkappas*ip+ikappa,6] = tau_budget[3]
                 pickle.dump(measure, open('measure.ser', 'wb'), protocol=-1)
+                block_label = '2-block' if ip == 0 else 'half-block' if ip == 1 else 'full-block'
+                labels[lkappas*ip+ikappa] = 'K:' + str(kappa) + ' ' + block_label
 
             # Plotting
             if PLOT:
@@ -400,6 +405,10 @@ def performance_profile(measure,solver_labels,fig_title,fig_name,save_dir):
     :param measure: prob x solver array,
      smallest values assumed to be the best
     '''
+
+    # Set up colour brewer colours
+    plt.rc('axes', prop_cycle=cycler('color', qualitative.Set1_9.mpl_colors))
+
     pn = measure.shape[0]
     sn = measure.shape[1]
 
