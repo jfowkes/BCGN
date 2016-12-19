@@ -16,7 +16,7 @@ def main():
 
     # Main parameters
     TOL = 1e-5
-    K_MAX = 100
+    K_MAX = 500
     GS = False
     ALG = 'tr'
 
@@ -25,9 +25,13 @@ def main():
     SAVEFIG = False
 
     # Loop over test functions
-    kappas = [1, 0.99, 0.9, 0.8] # TODO: what kappa?
-    funcs = ['ARGTRIG','ARTIF','ARWHDNE','BDVALUES','BRATU2D','BRATU3D','BROWNALE','BROYDN3D','BROYDNBD','CBRATU2D']
-    args = [{'N':100},{'N':100},{'N':100},{'NDP':102},{'P':10},{'P':5},{'N':100},{'N':100},{'N':100},{'P':7}]
+    kappas = [1, 0.9, 0.8, 0.7] # TODO: what kappa?
+    funcs = ['ARGTRIG','ARTIF','ARWHDNE','BDVALUES','BRATU2D','BRATU3D','BROWNALE','BROYDN3D','BROYDNBD','CBRATU2D',
+             'CBRATU3D','CHANDHEQ','DRCAVTY1','DRCAVTY2','INTEGREQ','OSCIPANE','QR3D','QR3DBD','YATP1SQ','YATP2SQ']
+              # 'POROUS1','POROUS2','WOODSNE'
+    args = [{'N':100},{'N':100},{'N':100},{'NDP':102},{'P':10},{'P':5},{'N':100},{'N':100},{'N':100},{'P':7},
+            {'P':4},{'N':100},{'M':10},{'M':10},{'N':100},{'N':100},{'M':10},{'M':10},{'N':10},{'N':10}]
+              # {'P':32},{'P':32},{'NS':25}
     metrics = ['accuracy','revals','budget','budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
     measure = np.zeros((len(funcs), 2*len(kappas)+1, len(metrics)))
     for ifunc, func in enumerate(funcs):
@@ -42,7 +46,7 @@ def main():
             # Get test function
             r, J, x0 = get_test_problem(func, args[ifunc])
             n = x0.size
-            fxopt = 0
+            fxopt = 0 # TODO: add non-zero residual problems
 
             # Plotting
             if PLOT:
