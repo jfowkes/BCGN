@@ -15,8 +15,7 @@ import os
 def main():
 
     # Main parameters
-    TOL = 1e-5
-    K_MAX = 500
+    G_MAX = 50 # Max full gradient evaluations
     GS = False
     ALG = 'tr'
 
@@ -32,7 +31,7 @@ def main():
     args = [{'N':100},{'N':100},{'N':100},{'NDP':102},{'P':10},{'P':5},{'N':100},{'N':100},{'N':100},{'P':7},
             {'P':4},{'N':100},{'M':10},{'M':10},{'N':100},{'N':100},{'M':10},{'M':10},{'N':10},{'N':10}]
               # {'P':32},{'P':32},{'NS':25}
-    metrics = ['accuracy','revals','budget','budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
+    metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
     measure = np.zeros((len(funcs), 2*len(kappas)+1, len(metrics)))
     for ifunc, func in enumerate(funcs):
         labels = measure.shape[1]*['']
@@ -67,14 +66,11 @@ def main():
             for ip, p in enumerate(blocks):
                 legend += ['Block Size ' + str(p)]
                 print '\n======',legend[ip], '======'
-                acc,revals,budget,tau_budget = RBCGN(r,J,x0,fxopt,K_MAX,TOL,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
-                measure[ifunc,lkappas*ip+ikappa,0] = acc
-                measure[ifunc,lkappas*ip+ikappa,1] = revals
-                measure[ifunc,lkappas*ip+ikappa,2] = budget
-                measure[ifunc,lkappas*ip+ikappa,3] = tau_budget[0]
-                measure[ifunc,lkappas*ip+ikappa,4] = tau_budget[1]
-                measure[ifunc,lkappas*ip+ikappa,5] = tau_budget[2]
-                measure[ifunc,lkappas*ip+ikappa,6] = tau_budget[3]
+                tau_budget = RBCGN(r,J,x0,fxopt,G_MAX,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
+                measure[ifunc,lkappas*ip+ikappa,0] = tau_budget[0]
+                measure[ifunc,lkappas*ip+ikappa,1] = tau_budget[1]
+                measure[ifunc,lkappas*ip+ikappa,2] = tau_budget[2]
+                measure[ifunc,lkappas*ip+ikappa,3] = tau_budget[3]
                 pickle.dump(measure, open('measure.ser', 'wb'), protocol=-1)
                 block_label = '2-block' if ip == 0 else 'half-block' if ip == 1 else 'full-block'
                 labels[lkappas*ip+ikappa] = 'K:' + str(kappa) + ' ' + block_label
@@ -104,11 +100,11 @@ def main():
     # Plot performance profiles
     for imetr, metr in enumerate(metrics):
             fig_title = metr
-            save_dir = 'figures/perf_profiles/' + ALG  + ("_GS" if GS else "") +  '/'
+            save_dir = 'figures/perf_profiles/' + ALG.upper() + ("_GS" if GS else "") +  '/'
             performance_profile(measure[:,:,imetr],labels,fig_title,metr,save_dir)
 
 """ Random Block-Coordinate Gauss-Newton """
-def RBCGN(r, J, x0, fxopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed=True, gaussSouthwell=False):
+def RBCGN(r, J, x0, fxopt, g_max, p, fig, kappa, algorithm='tr', plotFailed=True, gaussSouthwell=False):
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
@@ -137,7 +133,7 @@ def RBCGN(r, J, x0, fxopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed
     x = x0
     n = x.size
     accepted = True
-    while f(x) > tol and linalg.norm(gradf(x)) > tol and k < k_max:
+    while budget < g_max*n:
 
         # Evaluate full gradient for Gauss-Southwell
         if gaussSouthwell:
@@ -171,6 +167,8 @@ def RBCGN(r, J, x0, fxopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed
         Js_S = J_S.dot(s_S)
         Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
         stopping_rule = -Delta_m + (1-kappa)/2*linalg.norm(rx)**2 > 0
+        #Jx_S = J_S.dot(x.dot(U_S))
+        #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*linalg.norm(s_S)**2 > 0
 
         # Iteratively refine block size
         p_in = p
@@ -204,6 +202,8 @@ def RBCGN(r, J, x0, fxopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed
             Js_S = J_S.dot(s_S)
             Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
             stopping_rule = -Delta_m + (1-kappa)/2*linalg.norm(rx)**2 > 0
+            #Jx_S = J_S.dot(x.dot(U_S))
+            #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*linalg.norm(s_S)**2 > 0
 
         # Update trust region
         if algorithm == 'tr':
@@ -215,10 +215,14 @@ def RBCGN(r, J, x0, fxopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed
         budget += p_in
         print 'Iteration:', k, 'max block size:', p_in
 
-        # Accuracy-based metrics
+        # function decrease metrics
         for itau, tau in enumerate([1e-1,1e-3,1e-5,1e-7]):
             if np.isinf(tau_budget[itau]) and f(x) <= tau*f(x0) + (1-tau)*fxopt:
                 tau_budget[itau] = budget
+
+        # Stop if all function decrease metrics satisfied
+        if np.all(np.isfinite(tau_budget)):
+            return tau_budget
 
         # Plotting
         if (fig is not None) and (plotFailed or accepted):
@@ -230,11 +234,8 @@ def RBCGN(r, J, x0, fxopt, k_max, tol, p, fig, kappa, algorithm='tr', plotFailed
     # Output
     #monitor(k, r, x, f, delta, algorithm, accepted, gradf)
 
-    # Return metrics
-    if k == k_max: # failed to solve problem
-        return np.inf, np.inf, np.inf, tau_budget
-    else: # solved problem
-        return ma.fabs(f(x)-fxopt), r.calls, budget, tau_budget
+    # Return function decrease metrics (some unsatisfied)
+    return tau_budget
 
 """ Trust Region Update """
 def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update = 'none'):
@@ -488,20 +489,7 @@ def get_test_problem(name, sifParams):
         J = prob.jacobian
         xinit = prob.initial
 
-    # Define decorator for counting function calls
-    # TODO: add option to disable this
-    def count_calls(fn):
-        def wrapper(*args, **kwargs):
-            wrapper.calls += 1
-            return fn(*args, **kwargs)
-
-        wrapper.calls = 0
-        wrapper.__name__ = fn.__name__
-        return wrapper
-    @count_calls
-    def rw(x): return r(x)
-
-    return rw, J, xinit
+    return r, J, xinit
 
 """ Real-time plotting """
 def update_line(ax, hl, x_data, y_data):
