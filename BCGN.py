@@ -24,7 +24,7 @@ def main():
     SAVEFIG = False
 
     # Loop over test functions
-    kappas = [1, 0.9, 0.8, 0.7] # TODO: what kappa?
+    kappas = [1, 0.7] # TODO: what kappa?
     funcs = ['ARGTRIG','ARTIF','ARWHDNE','BDVALUES','BRATU2D','BRATU3D','BROWNALE','BROYDN3D','BROYDNBD','CBRATU2D',
              'CBRATU3D','CHANDHEQ','DRCAVTY1','DRCAVTY2','INTEGREQ','OSCIPANE','QR3D','QR3DBD','YATP1SQ','YATP2SQ']
               # 'POROUS1','POROUS2','WOODSNE'
@@ -33,8 +33,11 @@ def main():
               # {'P':32},{'P':32},{'NS':25}
     metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
     measure = np.zeros((len(funcs), 2*len(kappas)+1, len(metrics)))
+    labels = [r'$2$-BCGN', r'$2$-A-BCGN', r'$\frac{n}{2}$-BCGN', r'$\frac{n}{2}$-A-BCGN', 'GN']
+
+
     for ifunc, func in enumerate(funcs):
-        labels = measure.shape[1]*['']
+        #labels = measure.shape[1]*['']
         lkappas = len(kappas)
         for ikappa, kappa in enumerate(kappas):
             print '\n====== Kappa: ' + str(kappa) + ' ======'
@@ -72,8 +75,8 @@ def main():
                 measure[ifunc,lkappas*ip+ikappa,2] = tau_budget[2]
                 measure[ifunc,lkappas*ip+ikappa,3] = tau_budget[3]
                 pickle.dump(measure, open('measure.ser', 'wb'), protocol=-1)
-                block_label = '2-block' if ip == 0 else 'half-block' if ip == 1 else 'full-block'
-                labels[lkappas*ip+ikappa] = 'K:' + str(kappa) + ' ' + block_label
+                #block_label = '2-block' if ip == 0 else 'half-block' if ip == 1 else 'full-block'
+                #labels[lkappas*ip+ikappa] = 'K:' + str(kappa) + ' ' + block_label
 
             # Plotting
             if PLOT:
@@ -97,11 +100,21 @@ def main():
                     plt.savefig(dir+'/'+func)
                 plt.show()
 
+
+    #measure = pickle.load(open('measure.ser','rb'))
+
+    # Get problem dimensions
+    dimen = np.zeros(len(funcs))
+    for ifunc, func in enumerate(funcs):
+        _, _, x0 = get_test_problem(func, args[ifunc])
+        dimen[ifunc] = x0.size
+
     # Plot performance profiles
     for imetr, metr in enumerate(metrics):
             fig_title = metr
             save_dir = 'figures/perf_profiles/' + ALG.upper() + ("_GS" if GS else "") +  '/'
-            performance_profile(measure[:,:,imetr],labels,fig_title,metr,save_dir)
+            performance_profile(measure[:,:,imetr],labels,fig_title,metr,save_dir+'/perf/')
+            budget_profile(measure[:, :, imetr], dimen, labels, fig_title, metr, save_dir+'/budget/')
 
 """ Random Block-Coordinate Gauss-Newton """
 def RBCGN(r, J, x0, fxopt, g_max, p, fig, kappa, algorithm='tr', plotFailed=True, gaussSouthwell=False):
@@ -438,6 +451,48 @@ def performance_profile(measure,solver_labels,fig_title,fig_name,save_dir):
         plt.plot(t,y,'-',linewidth=2,clip_on=False)
     plt.grid()
     plt.xlabel('Performance Ratio')
+    plt.ylabel('% Problems Solved')
+    plt.legend(solver_labels,loc='lower right')
+    plt.title(fig_title,fontsize=13)
+
+    if not os.path.exists(save_dir): os.makedirs(save_dir)
+    plt.savefig(save_dir + '/' + fig_name)
+
+""" Calculate and Plot Budget Profile """
+def budget_profile(measure,dimen,solver_labels,fig_title,fig_name,save_dir):
+    '''
+    :param measure: prob x solver array,
+     smallest values assumed to be the best
+    '''
+
+    # Set up colour brewer colours
+    plt.rc('axes', prop_cycle=cycler('color', qualitative.Set1_9.mpl_colors))
+
+    pn = measure.shape[0]
+    sn = measure.shape[1]
+
+    # scale budget by dimension
+    ratio = np.zeros((pn, sn))
+    for p in range(pn):
+        for s in range(sn):
+            ratio[p,s] = measure[p,s]/dimen[p]
+
+    def profile(s,m):
+        prob = 0
+        for p in range(pn):
+            if ratio[p,s] <= m:
+                prob += 1
+        return prob/pn
+
+    m = np.linspace(0,50)
+    prof = np.vectorize(profile)
+    plt.figure(100)
+    plt.clf()
+    for s in range(sn):
+        y = prof(s,m)
+        plt.plot(m,y,'-',linewidth=2,clip_on=False)
+    plt.grid()
+    plt.xlabel('Budget')
     plt.ylabel('% Problems Solved')
     plt.legend(solver_labels,loc='lower right')
     plt.title(fig_title,fontsize=13)
