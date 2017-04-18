@@ -99,7 +99,7 @@ def main():
                     if not os.path.exists(dir): os.makedirs(dir)
                     plt.savefig(dir+'/'+func)
                 plt.show()
-
+                plt.clf()
 
     #measure = pickle.load(open('measure.ser','rb'))
 
@@ -242,7 +242,7 @@ def RBCGN(r, J, x0, fxopt, g_max, p, fig, kappa, algorithm='tr', plotFailed=True
             pk += 1
             update_line(ax1,hl1,pk,f(x))
             update_line(ax2,hl2,pk,linalg.norm(gradf(x)))
-            update_line(ax3,hl3,k + 1,p_in)
+            update_line(ax3,hl3,pk+1,p_in)
 
     # Output
     #monitor(k, r, x, f, delta, algorithm, accepted, gradf)
@@ -533,18 +533,34 @@ def get_test_problem(name, sifParams):
         if not cutermgr.isCached(name):
             cutermgr.prepareProblem(name,sifParams=sifParams)
         prob = cutermgr.importProblem(name)
-        def r(x): return prob.cons(x)
-        def J(x): return prob.cons(x,True)[1]
-        xinit = prob.getinfo()['x']
+        if sifParams != prob.getinfo()['sifparams']:
+            raise RuntimeWarning('Cached parameters for '+name+' do not match, recompiling.')
+            cutermgr.prepareProblem(name,sifParams=sifParams)
+            prob = cutermgr.importProblem(name)
 
-    else: # More-Garbow-Hillstrom
+        # Bugfix: ignore fixed variables
+        lb = prob.getinfo()['bl']
+        ub = prob.getinfo()['bu']
+        idx_fixed = np.where(ub==lb)[0]
+        idx_free = np.where(ub!=lb)[0]
+        def pad(x):
+            x_full = np.zeros(len(lb))
+            x_full[idx_free] = x
+            x_full[idx_fixed] = lb[idx_fixed]
+            return x_full
+
+        def r(x): return prob.cons(pad(x))
+        def J(x): return prob.cons(pad(x),True)[1][:,idx_free]
+        x0 = prob.getinfo()['x'][idx_free]
+
+    else: # More-Garbow-Hillstrom problem
         mod = __import__('MGH', fromlist=[name])
         prob = getattr(mod, name)()
         r = prob.r
         J = prob.jacobian
-        xinit = prob.initial
+        x0 = prob.initial
 
-    return r, J, xinit
+    return r, J, x0
 
 """ Real-time plotting """
 def update_line(ax, hl, x_data, y_data):
