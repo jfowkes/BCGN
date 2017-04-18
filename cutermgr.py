@@ -497,7 +497,7 @@ include_dirs=[os.path.join(np.get_include(), 'numpy')]
 objFileList=glob('*.o')
 objFileList.append('/usr/local/opt/cutest/lib/libcutest.a')
 libraries=['gfortran']
-library_dirs=['/usr/local/Cellar/gcc/6.2.0/lib/gcc/6/']
+library_dirs=['/usr/local/Cellar/gcc/6.3.0_1/lib/gcc/6/']
 """
 
 #
