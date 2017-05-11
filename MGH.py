@@ -157,6 +157,47 @@ class MGH():
         self.jac(x)
         return self.J
 
+    # Below are the fxopt from the original MGH paper
+    # N.B. some of these are parameter dependent
+    # WARNING: these are for ||r||^2 without the 1/2
+    """
+    Rosenbrock                      0
+    FreudensteinAndRoth             4.89843e+01
+    PowellBadlyScaled               0
+    BrownBadlyScaled                0
+    Beale                           0
+    JennrichAndSampson              1.24362e+02
+    HelicalValley                   0
+    Bard                            8.21487e-03
+    Gaussian                        1.12793e-08
+    Meyer                           8.79458e+01
+    GulfResearchAndDevelopement     0
+    Box3D                           0
+    PowellSingular                  0
+    Wood                            0
+    KowalikAndOsborne               3.07506e-04
+    BrownAndDennis                  8.58222e+04     #m=20
+    Osborne1                        5.46489e-05
+    BiggsEXP6                       5.65565e-03
+    Osborne2                        4.01377e-02
+    Watson                          2.28767e-3      #n=6
+    ExtendedRosenbrock              0
+    ExtendedPowellSingular          0
+    PenaltyI                        2.24998e-05     #n=4
+    PenaltyII                       9.37629e-06     #n=4
+    VariablyDimensioned             0
+    Trigonometric                   0
+    BrownAlmostLinear               0
+    DiscreteBoundaryValue           0
+    DiscreteIntegralEquation        0
+    BroydenTridiagonal              0
+    BroydenBanded                   0
+    LinearFullRank                  0               #m=n
+    LinearRank1                     0.90909090909   #m=n=5 
+    LinearRank1ZeroColumnsAndRows   2.42857142857   #m=n=5 
+    Chebyquad                       0               #m=n, 1<=n<=7, n=9
+    """
+
 class Rosenbrock(MGH):
     """
     Rosenbrock test function (n=m=2).
@@ -794,35 +835,27 @@ class Osborne1(MGH):
             raise Exception, DbgMsg("MGH", "Bad n or m.")
 
     def func(self, x):
-        ti=10.0*arange(0, self.m)
-        self.fi=self.y-(x[0]+x[1]*exp(-ti*x[3])+x[2]*exp(-ti*x[4]))
-        #for i in range(0, self.m):	# Matlab implementation has opposite sign for fi
-        #	ti = ((i+1)-1.0)*10.0	# Error in Matlab implementation
-        #	e4 = exp(-ti*x[3])
-        #	e5 = exp(-ti*x[4])
-        #	t2 = x[1]*e4
-        #	t3 = x[2]*e5
-        #	self.fi[i] = self.y[i] - (x[0] + t2 + t3)
+        for i in range(0, self.m):
+            ti = ((i+1)-1)*10.0
+            e4 = exp(-ti*x[3])
+            e5 = exp(-ti*x[4])
+            t2 = x[1]*e4
+            t3 = x[2]*e5
+            self.fi[i] = self.y[i] - (x[0] + t2 + t3)
 
     def jac(self, x):
-        ti = 10.0 * arange(0, self.m)
-        self.J[:,0]=-1.0
-        self.J[:,1]=-exp(-ti*x[3])
-        self.J[:,2]=-exp(-ti*x[4])
-        self.J[:,3]=ti*x[1]*exp(-ti*x[3])
-        self.J[:,4]=ti*x[2]*exp(-ti*x[4])
-        #for i in range(0, self.m):
-        #	ti = ((i+1)-1.0)*10.0	# Error in Matlab implementation
-        #	e4 = exp(-ti*x[3])
-        #	e5 = exp(-ti*x[4])
-        #	t2 = x[1]*e4
-        #	t3 = x[2]*e5
-        #
-        #	self.J[i,0]=-1.0
-        #	self.J[i,1]=-e4
-        #	self.J[i,2]=-e5
-        #	self.J[i,3]=ti*t2
-        #	self.J[i,4]=ti*t3
+        for i in range(0, self.m):
+            ti = ((i+1)-1)*10.0
+            e4 = exp(-ti*x[3])
+            e5 = exp(-ti*x[4])
+            t2 = x[1]*e4
+            t3 = x[2]*e5
+
+            self.J[i,0]=-1.0
+            self.J[i,1]=-e4
+            self.J[i,2]=-e5
+            self.J[i,3]=ti*t2
+            self.J[i,4]=ti*t3
 
 class BiggsEXP6(MGH):
     """
