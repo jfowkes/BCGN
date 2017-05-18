@@ -16,9 +16,8 @@ import os
 def main():
 
     # Main parameters
-    logging.basicConfig(format='%(asctime)s %(message)s',filename='ZeroBlockGradients.log')
     IT_MAX = 50 # Max iterations (plot=True) / full gradient evaluations (plot=False)
-    NO_INSTANCES = 1 # No. random runs
+    NO_INSTANCES = 100 # No. random runs
     FTOL = 1e-10
     GS = False
     ALG = 'tr'
@@ -203,24 +202,6 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, fname, kappa, algorithm='tr', p
         J_S = Jx.dot(U_S)
         rx = r(x)
         gradf_S = J_S.T.dot(rx)
-
-        # Check for zero block-gradients
-        while linalg.norm(gradf_S) < 1e-15:
-            logging.warning(fname+': block size '+str(len(S)))
-            if partitionBlock:
-                block_ind = np.random.choice(np.arange(0,n,p))
-                S = block_part[block_ind:block_ind+p]
-            else:
-                S = np.random.permutation(np.arange(n))[0:p]
-            U_S = np.zeros((n,len(S)))
-            for j in range(0,len(S)):
-                U_S[S[j],j] = 1
-
-            # Assemble block-reduced matrices
-            Jx = J(x)
-            J_S = Jx.dot(U_S)
-            rx = r(x)
-            gradf_S = J_S.T.dot(rx)
 
         # Output
         #monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S)
@@ -498,7 +479,7 @@ def performance_profile(measure,solver_labels,fig_title,fig_name,save_dir):
                 prob += 1
         return prob/pn
 
-    t = np.linspace(1,20)
+    t = np.linspace(1,50)
     prof = np.vectorize(profile)
     plt.figure(100)
     plt.clf()
