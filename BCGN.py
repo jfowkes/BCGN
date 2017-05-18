@@ -7,6 +7,7 @@ import numpy as np
 import scipy.linalg as linalg
 import math as ma
 import warnings
+import logging
 import pickle
 import cutermgr
 import os
@@ -15,7 +16,10 @@ import os
 def main():
 
     # Main parameters
-    G_MAX = 50 # Max full gradient evaluations
+    logging.basicConfig(format='%(asctime)s %(message)s',filename='ZeroBlockGradients.log')
+    IT_MAX = 50 # Max iterations (plot=True) / full gradient evaluations (plot=False)
+    NO_INSTANCES = 1 # No. random runs
+    FTOL = 1e-10
     GS = False
     ALG = 'tr'
 
@@ -24,62 +28,85 @@ def main():
     SAVEFIG = False
 
     # Loop over test functions
-    kappas = [1, 0.7] # TODO: what kappa?
+    kappas = [1, 0.7]
     funcs = ['ARGTRIG','ARTIF','ARWHDNE','BDVALUES','BRATU2D','BRATU3D','BROWNALE','BROYDN3D','BROYDNBD','CBRATU2D',
              'CBRATU3D','CHANDHEQ','DRCAVTY1','DRCAVTY2','INTEGREQ','OSCIPANE','QR3D','QR3DBD','YATP1SQ','YATP2SQ']
-              # 'POROUS1','POROUS2','WOODSNE'
     args = [{'N':100},{'N':100},{'N':100},{'NDP':102},{'P':10},{'P':5},{'N':100},{'N':100},{'N':100},{'P':7},
             {'P':4},{'N':100},{'M':10},{'M':10},{'N':100},{'N':100},{'M':10},{'M':10},{'N':10},{'N':10}]
-              # {'P':32},{'P':32},{'NS':25}
-    metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
-    measure = np.zeros((len(funcs), 2*len(kappas)+1, len(metrics)))
-    labels = [r'$2$-BCGN', r'$2$-A-BCGN', r'$\frac{n}{2}$-BCGN', r'$\frac{n}{2}$-A-BCGN', 'GN']
 
+    # Performance profile data
+    if not PLOT:
+        metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
+        measures = np.full((len(funcs),3+1,len(metrics),NO_INSTANCES),np.nan)
 
     for ifunc, func in enumerate(funcs):
+        print '====== ' + func + ' ======'
+
+        # Get test function
+        r, J, x0 = get_test_problem(func, args[ifunc])
+        n = x0.size
+        fxopt = 0
+
         #labels = measure.shape[1]*['']
-        lkappas = len(kappas)
+        labels = []
         for ikappa, kappa in enumerate(kappas):
             print '\n====== Kappa: ' + str(kappa) + ' ======'
 
-            # Fix RNG seed
-            np.random.seed(0)
-
-            # Get test function
-            r, J, x0 = get_test_problem(func, args[ifunc])
-            n = x0.size
-            fxopt = 0 # TODO: add non-zero residual problems
-
             # Plotting
             if PLOT:
-                fig = plt.figure(ifunc + 1,figsize=(24,6))
+                fig = plt.figure(ifunc+1,figsize=(24, 6))
                 ax1 = fig.add_subplot(1,3,1)
                 ax2 = fig.add_subplot(1,3,2)
                 ax3 = fig.add_subplot(1,3,3)
-            else:
-                fig = None
 
-            # Run RBCGN
-            print '====== ' + func + ' ======'
             legend = []
             if kappa == 1:
-                blocks = [2, int(round(n/2)), n]
+                blocks = [2,int(round(n/2)),n]
+                labels += [r'$2$-BCGN',r'$\frac{n}{2}$-BCGN','GN']
             else:
-                blocks = [2, int(round(n/2))]
+                blocks = [2]
+                labels += [r'$2$-A-BCGN']
             for ip, p in enumerate(blocks):
                 legend += ['Block Size ' + str(p)]
-                print '\n======',legend[ip], '======'
-                tau_budget = RBCGN(r,J,x0,fxopt,G_MAX,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
-                measure[ifunc,lkappas*ip+ikappa,0] = tau_budget[0]
-                measure[ifunc,lkappas*ip+ikappa,1] = tau_budget[1]
-                measure[ifunc,lkappas*ip+ikappa,2] = tau_budget[2]
-                measure[ifunc,lkappas*ip+ikappa,3] = tau_budget[3]
-                pickle.dump(measure, open('measure.ser', 'wb'), protocol=-1)
-                #block_label = '2-block' if ip == 0 else 'half-block' if ip == 1 else 'full-block'
-                #labels[lkappas*ip+ikappa] = 'K:' + str(kappa) + ' ' + block_label
+                print '\n======', labels[3*ikappa+ip], '======'
+
+                # Plotting
+                if PLOT:
+                    X = np.arange(IT_MAX+1)
+                    Ys = np.full((3,IT_MAX+1,NO_INSTANCES),np.nan)
+
+                # Set RNG seeds
+                if p == n:
+                    seeds = [0] # No randomness for GN
+                else:
+                    seeds = np.linspace(0,1e3,NO_INSTANCES,dtype=int)
+                for iseed, seed in enumerate(seeds):
+                    np.random.seed(seed) # Fix RNG seed
+
+                    # Run RBCGN
+                    if PLOT: # Plotting
+                        Ys[:,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,fig,func,kappa,algorithm=ALG,gaussSouthwell=GS)
+                    else: # performance profiles
+                        measures[ifunc,3*ikappa+ip,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,None,func,kappa,algorithm=ALG,gaussSouthwell=GS)
+
+                # Plotting
+                if PLOT:
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    ax1.semilogy(X,np.nanmean(Ys[0,:,:],axis=-1),nonposy='clip',linewidth=2)
+                    ax1.fill_between(X,np.nanmin(Ys[0,:,:],axis=-1),np.nanmax(Ys[0,:,:],axis=-1),alpha=0.5)
+                    ax2.semilogy(X,np.nanmean(Ys[1,:,:],axis=-1),nonposy='clip',linewidth=2)
+                    ax2.fill_between(X,np.nanmin(Ys[1,:,:],axis=-1),np.nanmax(Ys[1,:,:],axis=-1),alpha=0.5)
+                    ax3.plot(X,np.nanmean(Ys[2,:,:],axis=-1),linewidth=2)
+                    ax3.fill_between(X,np.nanmin(Ys[2,:,:],axis=-1),np.nanmax(Ys[2,:,:],axis=-1),alpha=0.5)
+                    warnings.resetwarnings()
+                else:
+                    pickle.dump(np.nanmean(measures, axis=-1), open('measure.ser', 'wb'), protocol=-1)
 
             # Plotting
             if PLOT:
+                xlimu = int(ax1.get_xlim()[1])
+                ax1.axhline(y=FTOL if fxopt==0 else fxopt,xmin=0,xmax=xlimu,color='k',linestyle='--')
+                ax2.semilogy(X[1:xlimu],1/X[1:xlimu],'k--')
                 plt.suptitle('RBCGN - ' + func + ' function (' + str(n) + 'D)',fontsize=13)
                 ax1.legend(legend)
                 ax1.set_xlabel('Iterations')
@@ -97,27 +124,35 @@ def main():
                     if GS: sfix = '_GS'
                     dir = 'figures/'+ALG.upper()+'/'+str(kappa)+sfix
                     if not os.path.exists(dir): os.makedirs(dir)
-                    plt.savefig(dir+'/'+func)
-                plt.show()
-                plt.clf()
+                    alg = 'BCGN' if kappa == 1 else 'A-BCGN'
+                    plt.savefig(dir+'/'+func+'_'+alg+'_'+str(NO_INSTANCES)+'runs')
+                    plt.clf()
+                else:
+                    plt.show()
 
-    #measure = pickle.load(open('measure.ser','rb'))
+    # Generate performance profiles
+    if not PLOT:
 
-    # Get problem dimensions
-    dimen = np.zeros(len(funcs))
-    for ifunc, func in enumerate(funcs):
-        _, _, x0 = get_test_problem(func, args[ifunc])
-        dimen[ifunc] = x0.size
+        # Average across runs
+        measure = np.nanmean(measures, axis=-1)
+        #measure = pickle.load(open('measure.ser','rb'))
+        #labels = [r'$2$-BCGN',r'$\frac{n}{2}$-BCGN','GN',r'$2$-A-BCGN']
 
-    # Plot performance profiles
-    for imetr, metr in enumerate(metrics):
-            fig_title = metr
-            save_dir = 'figures/perf_profiles/' + ALG.upper() + ("_GS" if GS else "") +  '/'
+        # Get problem dimensions
+        dimen = np.zeros(len(funcs))
+        for ifunc, func in enumerate(funcs):
+            _, _, x0 = get_test_problem(func, args[ifunc])
+            dimen[ifunc] = x0.size
+
+        # Plot performance profiles
+        for imetr, metr in enumerate(metrics):
+            fig_title = None
+            save_dir = 'figures/'+ALG.upper()+("_GS" if GS else "")+'/'
             performance_profile(measure[:,:,imetr],labels,fig_title,metr,save_dir+'/perf/')
-            budget_profile(measure[:, :, imetr], dimen, labels, fig_title, metr, save_dir+'/budget/')
+            budget_profile(measure[:,:,imetr],dimen,labels,fig_title,metr,save_dir+'/budget/')
 
 """ Random Block-Coordinate Gauss-Newton """
-def RBCGN(r, J, x0, fxopt, g_max, p, fig, kappa, algorithm='tr', plotFailed=True, gaussSouthwell=False):
+def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, fname, kappa, algorithm='tr', partitionBlock=False, gaussSouthwell=False):
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
@@ -125,40 +160,42 @@ def RBCGN(r, J, x0, fxopt, g_max, p, fig, kappa, algorithm='tr', plotFailed=True
 
     # Plotting
     if fig is not None:
-        ax1 = fig.add_subplot(1,3,1)
-        ax2 = fig.add_subplot(1,3,2)
-        ax3 = fig.add_subplot(1,3,3)
-        hl1, = ax1.semilogy(0,f(x0),nonposy='clip',linewidth=2)
-        hl2, = ax2.semilogy(0,linalg.norm(gradf(x0)),nonposy='clip',linewidth=2)
-        hl3, = ax3.plot(0, p, linewidth=2)
+        plot_data = np.full((3,it_max+1),np.nan)
+        plot_data[0,0] = f(x0)
+        plot_data[1,0] = linalg.norm(gradf(x0))
 
     # Metrics
     budget = 0
-    tau_budget = np.inf*np.ones(4)
+    tau_budget = np.full(4,np.nan)
 
     # Set initial trust region radius
     delta = None
     if algorithm == 'tr':
         delta = linalg.norm(gradf(x0))/10
 
+    # Initialize block partition
+    if partitionBlock:
+        block_part = np.random.permutation(np.arange(x0.size))
+
     k = 0
-    pk = 0
     x = x0
     n = x.size
-    accepted = True
-    while budget < g_max*n:
+    while (not fig and budget < it_max*n) or (fig and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
 
         # Evaluate full gradient for Gauss-Southwell
         if gaussSouthwell:
             sorted_nginds = np.argsort(np.fabs(gradf(x)))[::-1]
-        
+
         # Randomly select blocks
         if gaussSouthwell:
             S = sorted_nginds[0:p]
+        elif partitionBlock:
+            block_ind = np.random.choice(np.arange(0,n,p))
+            S = block_part[block_ind:block_ind+p]
         else:
             S = np.random.permutation(np.arange(n))[0:p]
-        U_S = np.zeros((n,p))
-        for j in range(0,p):
+        U_S = np.zeros((n,len(S)))
+        for j in range(0,len(S)):
             U_S[S[j],j] = 1
 
         # Assemble block-reduced matrices
@@ -166,6 +203,24 @@ def RBCGN(r, J, x0, fxopt, g_max, p, fig, kappa, algorithm='tr', plotFailed=True
         J_S = Jx.dot(U_S)
         rx = r(x)
         gradf_S = J_S.T.dot(rx)
+
+        # Check for zero block-gradients
+        while linalg.norm(gradf_S) < 1e-15:
+            logging.warning(fname+': block size '+str(len(S)))
+            if partitionBlock:
+                block_ind = np.random.choice(np.arange(0,n,p))
+                S = block_part[block_ind:block_ind+p]
+            else:
+                S = np.random.permutation(np.arange(n))[0:p]
+            U_S = np.zeros((n,len(S)))
+            for j in range(0,len(S)):
+                U_S[S[j],j] = 1
+
+            # Assemble block-reduced matrices
+            Jx = J(x)
+            J_S = Jx.dot(U_S)
+            rx = r(x)
+            gradf_S = J_S.T.dot(rx)
 
         # Output
         #monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S)
@@ -225,30 +280,29 @@ def RBCGN(r, J, x0, fxopt, g_max, p, fig, kappa, algorithm='tr', plotFailed=True
             x = x + delta*U_S.dot(s_S)
 
         k += 1
-        budget += p_in
-        print 'Iteration:', k, 'max block size:', p_in
+        budget += len(S)
+        #print 'Iteration:', k, 'max block size:', len(S)
 
         # function decrease metrics
-        for itau, tau in enumerate([1e-1,1e-3,1e-5,1e-7]):
-            if np.isinf(tau_budget[itau]) and f(x) <= tau*f(x0) + (1-tau)*fxopt:
-                tau_budget[itau] = budget
-
-        # Stop if all function decrease metrics satisfied
-        if np.all(np.isfinite(tau_budget)):
-            return tau_budget
-
-        # Plotting
-        if (fig is not None) and (plotFailed or accepted):
-            pk += 1
-            update_line(ax1,hl1,pk,f(x))
-            update_line(ax2,hl2,pk,linalg.norm(gradf(x)))
-            update_line(ax3,hl3,pk+1,p_in)
+        if fig is None:
+            for itau, tau in enumerate([1e-1,1e-3,1e-5,1e-7]):
+                if np.isnan(tau_budget[itau]) and linalg.norm(gradf(x)) <= tau*linalg.norm(gradf(x0)):
+                    tau_budget[itau] = budget
+            if np.all(np.isfinite(tau_budget)): # Stop if all function decrease metrics satisfied
+                return tau_budget
+        else: # plotting
+            plot_data[0,k] = f(x)
+            plot_data[1,k] = linalg.norm(gradf(x))
+            plot_data[2,k] = len(S)
 
     # Output
     #monitor(k, r, x, f, delta, algorithm, accepted, gradf)
 
     # Return function decrease metrics (some unsatisfied)
-    return tau_budget
+    if fig is None:
+        return tau_budget
+    else: # plotting
+        return plot_data
 
 """ Trust Region Update """
 def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update = 'none'):
@@ -430,10 +484,12 @@ def performance_profile(measure,solver_labels,fig_title,fig_name,save_dir):
     pn = measure.shape[0]
     sn = measure.shape[1]
 
+    warnings.simplefilter("ignore", RuntimeWarning)
     ratio = np.zeros((pn,sn))
     for p in range(pn):
         for s in range(sn):
             ratio[p,s] = measure[p,s]/min(measure[p,:])
+    warnings.resetwarnings()
 
     def profile(s,t):
         prob = 0
@@ -453,7 +509,8 @@ def performance_profile(measure,solver_labels,fig_title,fig_name,save_dir):
     plt.xlabel('Performance Ratio')
     plt.ylabel('% Problems Solved')
     plt.legend(solver_labels,loc='lower right')
-    plt.title(fig_title,fontsize=13)
+    if fig_title:
+        plt.title(fig_title,fontsize=13)
 
     if not os.path.exists(save_dir): os.makedirs(save_dir)
     plt.savefig(save_dir + '/' + fig_name)
@@ -495,7 +552,8 @@ def budget_profile(measure,dimen,solver_labels,fig_title,fig_name,save_dir):
     plt.xlabel('Budget')
     plt.ylabel('% Problems Solved')
     plt.legend(solver_labels,loc='lower right')
-    plt.title(fig_title,fontsize=13)
+    if fig_title:
+        plt.title(fig_title,fontsize=13)
 
     if not os.path.exists(save_dir): os.makedirs(save_dir)
     plt.savefig(save_dir + '/' + fig_name)
@@ -528,7 +586,6 @@ def monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S=None):
 """ Test Problem Selector """
 def get_test_problem(name, sifParams):
 
-    # TODO: make this more efficient
     if name.isupper(): # CUTEst problem
         if not cutermgr.isCached(name):
             cutermgr.prepareProblem(name,sifParams=sifParams)
@@ -561,13 +618,5 @@ def get_test_problem(name, sifParams):
         x0 = prob.initial
 
     return r, J, x0
-
-""" Real-time plotting """
-def update_line(ax, hl, x_data, y_data):
-    hl.set_xdata(np.append(hl.get_xdata(), x_data))
-    hl.set_ydata(np.append(hl.get_ydata(), y_data))
-    ax.relim()
-    ax.autoscale_view()
-    plt.draw()
 
 main()
