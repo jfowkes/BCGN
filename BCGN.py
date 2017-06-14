@@ -32,6 +32,7 @@ def main():
              'CBRATU3D','CHANDHEQ','DRCAVTY1','DRCAVTY2','INTEGREQ','OSCIPANE','QR3D','QR3DBD','YATP1SQ','YATP2SQ']
     args = [{'N':100},{'N':100},{'N':100},{'NDP':102},{'P':10},{'P':5},{'N':100},{'N':100},{'N':100},{'P':7},
             {'P':4},{'N':100},{'M':10},{'M':10},{'N':100},{'N':100},{'M':10},{'M':10},{'N':10},{'N':10}]
+    fxopts = np.zeros(20)
 
     # Performance profile data
     if not PLOT:
@@ -44,9 +45,8 @@ def main():
         # Get test function
         r, J, x0 = get_test_problem(func, args[ifunc])
         n = x0.size
-        fxopt = 0
+        fxopt = fxopts[ifunc]
 
-        #labels = measure.shape[1]*['']
         labels = []
         for ikappa, kappa in enumerate(kappas):
             print '\n====== Kappa: ' + str(kappa) + ' ======'
@@ -80,8 +80,10 @@ def main():
                 else:
                     seeds = np.linspace(0,1e3,NO_INSTANCES,dtype=int)
                 for iseed, seed in enumerate(seeds):
+                    print 'Run:',iseed
                     np.random.seed(seed) # Fix RNG seed
 
+                    #if not (func == 'OSCIPANE' and kappa == 0.7 and iseed in [40]):
                     # Run RBCGN
                     if PLOT: # Plotting
                         Ys[:,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,fig,func,kappa,algorithm=ALG,gaussSouthwell=GS)
@@ -104,8 +106,8 @@ def main():
             # Plotting
             if PLOT:
                 xlimu = int(ax1.get_xlim()[1])
-                ax1.axhline(y=FTOL if fxopt==0 else fxopt,xmin=0,xmax=xlimu,color='k',linestyle='--')
-                ax2.semilogy(X[1:xlimu],1/X[1:xlimu],'k--')
+                #ax1.axhline(y=FTOL if fxopt==0 else fxopt,xmin=0,xmax=xlimu,color='k',linestyle='--')
+                #ax2.semilogy(X[1:xlimu],1/X[1:xlimu],'k--')
                 plt.suptitle('RBCGN - ' + func + ' function (' + str(n) + 'D)',fontsize=13)
                 ax1.legend(legend)
                 ax1.set_xlabel('Iterations')
@@ -160,7 +162,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, fname, kappa, algorithm='tr', p
     # Plotting
     if fig is not None:
         plot_data = np.full((3,it_max+1),np.nan)
-        plot_data[0,0] = f(x0)
+        plot_data[0,0] = f(x0)-fxopt
         plot_data[1,0] = linalg.norm(gradf(x0))
 
     # Metrics
@@ -272,7 +274,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, fname, kappa, algorithm='tr', p
             if np.all(np.isfinite(tau_budget)): # Stop if all function decrease metrics satisfied
                 return tau_budget
         else: # plotting
-            plot_data[0,k] = f(x)
+            plot_data[0,k] = f(x)-fxopt
             plot_data[1,k] = linalg.norm(gradf(x))
             plot_data[2,k] = len(S)
 
