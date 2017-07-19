@@ -21,6 +21,7 @@ def main():
     FTOL = 1e-10
     GS = False
     ALG = 'tr'
+    TRSALG = trs
 
     # Plotting parameters
     PLOT = False
@@ -60,6 +61,9 @@ def main():
 
             legend = []
             if kappa == 1:
+                #blocks = np.arange(1,n+1)
+                #labels += [r'$' + str(p) + '$-BCGN' for p in range(1,n)]
+                #labels += ['GN']
                 blocks = [2,int(round(n/2)),n]
                 labels += [r'$2$-BCGN',r'$\frac{n}{2}$-BCGN','GN']
             else:
@@ -86,9 +90,9 @@ def main():
                     #if not (func == 'OSCIPANE' and kappa == 0.7 and iseed in [40]):
                     # Run RBCGN
                     if PLOT: # Plotting
-                        Ys[:,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,fig,func,kappa,algorithm=ALG,gaussSouthwell=GS)
+                        Ys[:,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,fig,kappa,TRSALG,algorithm=ALG,gaussSouthwell=GS)
                     else: # performance profiles
-                        measures[ifunc,3*ikappa+ip,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,None,func,kappa,algorithm=ALG,gaussSouthwell=GS)
+                        measures[ifunc,3*ikappa+ip,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,None,kappa,TRSALG,algorithm=ALG,gaussSouthwell=GS)
 
                 # Plotting
                 if PLOT:
@@ -153,7 +157,7 @@ def main():
             budget_profile(measure[:,:,imetr],dimen,labels,fig_title,metr,save_dir+'/budget/')
 
 """ Random Block-Coordinate Gauss-Newton """
-def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, fname, kappa, algorithm='tr', partitionBlock=False, gaussSouthwell=False):
+def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, trs_alg, algorithm='tr', partitionBlock=False, gaussSouthwell=False):
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
@@ -210,7 +214,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, fname, kappa, algorithm='tr', p
 
         # Solve trust region subproblem
         if algorithm == 'tr':
-            s_S = trs(J_S, gradf_S, delta)
+            s_S = trs_alg(J_S, gradf_S, delta)
         else:
             s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
 
@@ -245,7 +249,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, fname, kappa, algorithm='tr', p
 
             # Solve trust region subproblem
             if algorithm == 'tr':
-                s_S = trs(J_S, gradf_S, delta)
+                s_S = trs_alg(J_S, gradf_S, delta)
             else:
                 s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
 
@@ -288,7 +292,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, fname, kappa, algorithm='tr', p
         return plot_data
 
 """ Trust Region Update """
-def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update = 'none'):
+def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update='none'):
     accepted = False
 
     # Trust Region parameters
@@ -392,6 +396,54 @@ def trs(J_S, gradf_S, delta):
 
     return s_S
 
+""" Approximate Trust Region Subproblem """
+def trs_approx(J_S, gradf_S, delta):
+    p = J_S.shape[1]
+
+    # Gradient tolerance
+    GTOL = 1e-15
+
+    # Initialize
+    s_S = np.zeros(p)
+    g_S = gradf_S
+    ng_S2 = linalg.norm(g_S)**2
+    p_S = -g_S
+
+    while linalg.norm(g_S) > GTOL:
+
+        # Calculate curvature
+        Jp_S = J_S.dot(p_S)
+        kappa = np.dot(Jp_S, Jp_S)
+
+        # Check for zero curvature
+        if kappa < 1e-30: # Find boundary solution
+            sigma = quadeq_pos(np.dot(p_S, p_S), 2 * np.dot(s_S, p_S), np.dot(s_S, s_S) - delta ** 2) # Find quadratic root
+            return s_S + sigma * p_S
+
+        # Calculate step length for s and g
+        alpha = ng_S2/kappa
+
+        # Trust region active: boundary solution
+        if linalg.norm(s_S + alpha*p_S) >= delta:
+            sigma = quadeq_pos(np.dot(p_S, p_S), 2 * np.dot(s_S, p_S), np.dot(s_S, s_S) - delta ** 2) # Find quadratic root
+            return s_S + sigma * p_S
+
+        # Take step for s and g
+        s_S = s_S + alpha * p_S
+        g_S = g_S + alpha * J_S.T.dot(J_S).dot(p_S)
+
+        # Calculate step length for p
+        ng_S2_new = linalg.norm(g_S)**2
+        beta = ng_S2_new/ng_S2
+        ng_S2 = ng_S2_new
+
+        # Take step for p
+        p_S = -g_S + beta * p_S
+
+    # Trust region inactive: interior solution
+    return s_S
+
+
 """ Return roots of quadratic equation """
 def quadeq(a, b, c):
     warnings.simplefilter("error", RuntimeWarning)
@@ -403,6 +455,18 @@ def quadeq(a, b, c):
         x2 = 0
     warnings.resetwarnings()
     return x1, x2
+
+""" Return positive root of quadratic equation """
+def quadeq_pos(a, b, c):
+    warnings.simplefilter("error", RuntimeWarning)
+    try:
+        x1 = (-b + ma.sqrt(b * b - 4 * a * c)) / (2 * a)
+        x2 = (-b - ma.sqrt(b * b - 4 * a * c)) / (2 * a)
+        x = max(0,x1,x2)
+    except RuntimeWarning: # failed step: delta too large
+        x = 0
+    warnings.resetwarnings()
+    return x
 
 """ Line Search """
 def line_search(f, x, U_S, J_S, gradf_S):
