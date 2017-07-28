@@ -7,7 +7,6 @@ import numpy as np
 import scipy.linalg as linalg
 import math as ma
 import warnings
-import logging
 import pickle
 import cutermgr
 import os
@@ -21,10 +20,9 @@ def main():
     FTOL = 1e-10
     GS = False
     ALG = 'tr'
-    TRSALG = trs
 
     # Plotting parameters
-    PLOT = False
+    PLOT = True
     SAVEFIG = False
 
     # Loop over test functions
@@ -90,9 +88,9 @@ def main():
                     #if not (func == 'OSCIPANE' and kappa == 0.7 and iseed in [40]):
                     # Run RBCGN
                     if PLOT: # Plotting
-                        Ys[:,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,fig,kappa,TRSALG,algorithm=ALG,gaussSouthwell=GS)
+                        Ys[:,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
                     else: # performance profiles
-                        measures[ifunc,3*ikappa+ip,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,None,kappa,TRSALG,algorithm=ALG,gaussSouthwell=GS)
+                        measures[ifunc,3*ikappa+ip,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,None,kappa,algorithm=ALG,gaussSouthwell=GS)
 
                 # Plotting
                 if PLOT:
@@ -110,7 +108,7 @@ def main():
             # Plotting
             if PLOT:
                 xlimu = int(ax1.get_xlim()[1])
-                #ax1.axhline(y=FTOL if fxopt==0 else fxopt,xmin=0,xmax=xlimu,color='k',linestyle='--')
+                ax1.axhline(y=FTOL if fxopt==0 else fxopt,xmin=0,xmax=xlimu,color='k',linestyle='--')
                 #ax2.semilogy(X[1:xlimu],1/X[1:xlimu],'k--')
                 plt.suptitle('RBCGN - ' + func + ' function (' + str(n) + 'D)',fontsize=13)
                 ax1.legend(legend)
@@ -157,7 +155,7 @@ def main():
             budget_profile(measure[:,:,imetr],dimen,labels,fig_title,metr,save_dir+'/budget/')
 
 """ Random Block-Coordinate Gauss-Newton """
-def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, trs_alg, algorithm='tr', partitionBlock=False, gaussSouthwell=False):
+def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitionBlock=False, gaussSouthwell=False):
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
@@ -175,7 +173,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, trs_alg, algorithm='tr',
 
     # Set initial trust region radius
     delta = None
-    if algorithm == 'tr':
+    if algorithm == 'tr' or algorithm == 'reg':
         delta = linalg.norm(gradf(x0))/10
 
     # Initialize block partition
@@ -210,11 +208,13 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, trs_alg, algorithm='tr',
         gradf_S = J_S.T.dot(rx)
 
         # Output
-        #monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S)
+        #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
 
-        # Solve trust region subproblem
+        # Solve subproblem
         if algorithm == 'tr':
-            s_S = trs_alg(J_S, gradf_S, delta)
+            s_S = trs(J_S, gradf_S, delta)
+        elif algorithm == 'reg':
+            s_S = reg(J_S, gradf_S, delta)
         else:
             s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
 
@@ -245,11 +245,13 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, trs_alg, algorithm='tr',
             p_in += 1
 
             # Output
-            #monitor(k, r, x, f, delta, algorithm, True, gradf, gradf_S)
+            #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
 
-            # Solve trust region subproblem
+            # Solve subproblem
             if algorithm == 'tr':
-                s_S = trs_alg(J_S, gradf_S, delta)
+                s_S = trs(J_S, gradf_S, delta)
+            elif algorithm == 'reg':
+                s_S = reg(J_S, gradf_S, delta)
             else:
                 s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
 
@@ -260,9 +262,11 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, trs_alg, algorithm='tr',
             #Jx_S = J_S.dot(x.dot(U_S))
             #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*linalg.norm(s_S)**2 > 0
 
-        # Update trust region
+        # Update parameter and take step
         if algorithm == 'tr':
-            x, delta, accepted = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta)
+            x, delta = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta)
+        elif algorithm == 'reg':
+            x, delta = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, GAMMA1=2., GAMMA2=0.5) # grow/shrink swapped
         else:
             x = x + delta*U_S.dot(s_S)
 
@@ -283,7 +287,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, trs_alg, algorithm='tr',
             plot_data[2,k] = len(S)
 
     # Output
-    #monitor(k, r, x, f, delta, algorithm, accepted, gradf)
+    #monitor(k, r, x, f, delta, algorithm, gradf)
 
     # Return function decrease metrics (some unsatisfied)
     if fig is None:
@@ -292,14 +296,11 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, trs_alg, algorithm='tr',
         return plot_data
 
 """ Trust Region Update """
-def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update='none'):
-    accepted = False
+def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, GAMMA1=0.5, GAMMA2=2., update='standard'):
 
     # Trust Region parameters
     ETA1 = 0.25
     ETA2 = 0.75
-    GAMMA1 = 0.5
-    GAMMA2 = 2.
     COUPL = 0.1
     DELTA_MIN = 1e-150
     DELTA_MAX = 1e150
@@ -313,7 +314,6 @@ def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update='none'):
 
         if rho >= ETA1 and linalg.norm(gradf_S) > COUPL*delta:
             x = x + s
-            accepted = True
         else:
             delta *= GAMMA1
             delta = max(delta, DELTA_MIN)
@@ -324,7 +324,6 @@ def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update='none'):
         # Accept trial point
         if rho >= ETA1:
             x = x + s
-            accepted = True
 
         # Update trust region radius
         if rho < ETA1:
@@ -334,7 +333,7 @@ def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update='none'):
             delta *= GAMMA2
             delta = min(delta,DELTA_MAX)
 
-    return x, delta, accepted
+    return x, delta
 
 """ Trust Region Subproblem """
 def trs(J_S, gradf_S, delta):
@@ -368,7 +367,7 @@ def trs(J_S, gradf_S, delta):
         lamda = LEPS
 
         # Solve *perturbed* normal equations to find search direction
-        _, R_S = linalg.qr(np.vstack((J_S, ma.sqrt(lamda) * np.eye(p))),mode='economic')
+        _, R_S = linalg.qr(np.vstack((J_S, ma.sqrt(lamda) * np.eye(p))), mode='economic')
         t_S = linalg.solve_triangular(R_S.T, -gradf_S, lower=True)
         s_S = linalg.solve_triangular(R_S, t_S)
         ns_S = linalg.norm(s_S)
@@ -396,7 +395,18 @@ def trs(J_S, gradf_S, delta):
 
     return s_S
 
-""" Approximate Trust Region Subproblem """
+""" Regularization Subproblem """
+def reg(J_S, gradf_S, delta):
+    p = J_S.shape[1]
+
+    # Solve *perturbed* normal equations to find search direction
+    _, R_S = linalg.qr(np.vstack((J_S, ma.sqrt(delta) * np.eye(p))), mode='economic')
+    t_S = linalg.solve_triangular(R_S.T, -gradf_S, lower=True)
+    s_S = linalg.solve_triangular(R_S, t_S)
+
+    return s_S
+
+""" Steihaug-Toint Conjugate Gradient (SLOW even with Numba) """
 def trs_approx(J_S, gradf_S, delta):
     p = J_S.shape[1]
 
@@ -458,15 +468,8 @@ def quadeq(a, b, c):
 
 """ Return positive root of quadratic equation """
 def quadeq_pos(a, b, c):
-    warnings.simplefilter("error", RuntimeWarning)
-    try:
-        x1 = (-b + ma.sqrt(b * b - 4 * a * c)) / (2 * a)
-        x2 = (-b - ma.sqrt(b * b - 4 * a * c)) / (2 * a)
-        x = max(0,x1,x2)
-    except RuntimeWarning: # failed step: delta too large
-        x = 0
-    warnings.resetwarnings()
-    return x
+    x1,x2 = quadeq(a,b,c)
+    return max(0,x1,x2)
 
 """ Line Search """
 def line_search(f, x, U_S, J_S, gradf_S):
@@ -606,12 +609,13 @@ def budget_profile(measure,dimen,solver_labels,fig_title,fig_name,save_dir):
     plt.savefig(save_dir + '/' + fig_name)
 
 """ Output Monitoring Information """
-def monitor(k, r, x, f, delta, algorithm, accepted, gradf, gradf_S=None):
+def monitor(k, r, x, f, delta, algorithm, gradf, gradf_S=None):
 
     print '++++ Iteration', k, '++++'
     if algorithm == 'tr':
         print 'delta: %.2e' % delta
-        if not accepted: print "Step Failed!"
+    elif algorithm == 'reg':
+        print 'sigma: %.2e' % delta
     elif delta is not None:
         print 'alpha: %.2e' % delta
 
@@ -638,9 +642,7 @@ def get_test_problem(name, sifParams):
             cutermgr.prepareProblem(name,sifParams=sifParams)
         prob = cutermgr.importProblem(name)
         if sifParams != prob.getinfo()['sifparams']:
-            raise RuntimeWarning('Cached parameters for '+name+' do not match, recompiling.')
-            cutermgr.prepareProblem(name,sifParams=sifParams)
-            prob = cutermgr.importProblem(name)
+            raise RuntimeError('Cached parameters for '+name+' do not match, please recompile.')
 
         # Bugfix: ignore fixed variables
         lb = prob.getinfo()['bl']
