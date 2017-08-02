@@ -340,7 +340,7 @@ def trs(J_S, gradf_S, delta):
     p = J_S.shape[1]
 
     # Trust Region subproblem parameters
-    LEPS = 1e-5
+    LEPS = 1e-8
     KE = 0.01
 
     # J_S'J_S full rank
