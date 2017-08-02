@@ -108,7 +108,7 @@ def main():
             # Plotting
             if PLOT:
                 xlimu = int(ax1.get_xlim()[1])
-                ax1.axhline(y=FTOL if fxopt==0 else fxopt,xmin=0,xmax=xlimu,color='k',linestyle='--')
+                ax1.axhline(y=FTOL,xmin=0,xmax=xlimu,color='k',linestyle='--')
                 #ax2.semilogy(X[1:xlimu],1/X[1:xlimu],'k--')
                 plt.suptitle('RBCGN - ' + func + ' function (' + str(n) + 'D)',fontsize=13)
                 ax1.legend(legend)
@@ -214,7 +214,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         if algorithm == 'tr':
             s_S = trs(J_S, gradf_S, delta)
         elif algorithm == 'reg':
-            s_S = reg(J_S, gradf_S, delta)
+            s_S, delta = reg(J_S, gradf_S, delta)
         else:
             s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
 
@@ -251,7 +251,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
             if algorithm == 'tr':
                 s_S = trs(J_S, gradf_S, delta)
             elif algorithm == 'reg':
-                s_S = reg(J_S, gradf_S, delta)
+                s_S, delta = reg(J_S, gradf_S, delta)
             else:
                 s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
 
@@ -399,12 +399,19 @@ def trs(J_S, gradf_S, delta):
 def reg(J_S, gradf_S, delta):
     p = J_S.shape[1]
 
+    # Regularization parameters
+    SIGMA_MIN = 1e-8
+
+    # J_S'J_S singular: limit sigma to sigma_min
+    if np.linalg.matrix_rank(J_S) != p:
+        delta = max(delta,SIGMA_MIN)
+
     # Solve *perturbed* normal equations to find search direction
     _, R_S = linalg.qr(np.vstack((J_S, ma.sqrt(delta) * np.eye(p))), mode='economic')
     t_S = linalg.solve_triangular(R_S.T, -gradf_S, lower=True)
     s_S = linalg.solve_triangular(R_S, t_S)
 
-    return s_S
+    return s_S, delta
 
 """ Steihaug-Toint Conjugate Gradient (SLOW even with Numba) """
 def trs_approx(J_S, gradf_S, delta):
