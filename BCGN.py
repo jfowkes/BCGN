@@ -157,6 +157,9 @@ def main():
 """ Random Block-Coordinate Gauss-Newton """
 def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitionBlock=False, gaussSouthwell=False):
 
+    # Adaptive BCGN step size
+    STEP = 5
+
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
     def gradf(z): return J(z).T.dot(r(z))
@@ -230,19 +233,20 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         while p_in != n and stopping_rule:
 
             # Increase block size
-            #print 'Increasing block size to:', p_in+1
+            #print 'Increasing block size to:', p_in+STEP
             if gaussSouthwell:
-                ind = sorted_nginds[p_in]
+                inds = sorted_nginds[p_in:p_in+STEP]
             else:
                 S = np.nonzero(U_S)[0]
-                inds = np.setdiff1d(np.arange(n), S)
-                ind = np.random.choice(inds, 1)
-            U_ind = np.zeros((n, 1))
-            U_ind[ind, :] = 1
-            U_S = np.hstack((U_S, U_ind))
+                rem_inds = np.setdiff1d(np.arange(n),S)
+                inds = np.random.choice(rem_inds,STEP,replace=False)
+            U_inds = np.zeros((n,STEP))
+            for j in range(0,len(inds)):
+                U_inds[inds[j],j] = 1
+            U_S = np.hstack((U_S,U_inds))
             J_S = Jx.dot(U_S)
             gradf_S = J_S.T.dot(rx)
-            p_in += 1
+            p_in += STEP
 
             # Output
             #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
