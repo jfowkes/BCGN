@@ -1,14 +1,12 @@
 """ Block-Coordinate Gauss-Newton """
 from __future__ import division
-from cycler import cycler
-from palettable.colorbrewer import qualitative
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as linalg
 import math as ma
 import warnings
 import pickle
 import cutermgr
+import time
 import os
 
 """ Main function """
@@ -34,16 +32,22 @@ def main():
     fxopts = np.zeros(20)
 
     # Performance profile data
-    if not PLOT:
+    if PLOT:
+        import matplotlib.pyplot as plt
+    else:
         metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
         measures = np.full((len(funcs),3+1,len(metrics),NO_INSTANCES),np.nan)
+        basename = 'BCGN-'+ALG.upper()+'-'+time.strftime('%d.%m.%Y-%H:%M:%S')
+        pickle.dump(funcs, open(basename+'.funcs', 'wb'), protocol=-1)
 
+    dimen = []
     for ifunc, func in enumerate(funcs):
         print '====== ' + func + ' ======'
 
         # Get test function
         r, J, x0 = get_test_problem(func, args[ifunc])
         n = x0.size
+        dimen += [n]
         fxopt = fxopts[ifunc]
 
         labels = []
@@ -103,7 +107,8 @@ def main():
                     ax3.fill_between(X,np.nanmin(Ys[2,:,:],axis=-1),np.nanmax(Ys[2,:,:],axis=-1),alpha=0.5)
                     warnings.resetwarnings()
                 else:
-                    pickle.dump(np.nanmean(measures, axis=-1), open('measure.ser', 'wb'), protocol=-1)
+                    pickle.dump(np.nanmean(measures, axis=-1), open(basename+'.measure', 'wb'), protocol=-1)
+                    pickle.dump(dimen, open(basename+'.dimen', 'wb'), protocol=-1)
 
             # Plotting
             if PLOT:
@@ -132,27 +137,6 @@ def main():
                     plt.clf()
                 else:
                     plt.show()
-
-    # Generate performance profiles
-    if not PLOT:
-
-        # Average across runs
-        measure = np.nanmean(measures, axis=-1)
-        #measure = pickle.load(open('measure.ser','rb'))
-        #labels = [r'$2$-BCGN',r'$\frac{n}{2}$-BCGN','GN',r'$2$-A-BCGN']
-
-        # Get problem dimensions
-        dimen = np.zeros(len(funcs))
-        for ifunc, func in enumerate(funcs):
-            _, _, x0 = get_test_problem(func, args[ifunc])
-            dimen[ifunc] = x0.size
-
-        # Plot performance profiles
-        for imetr, metr in enumerate(metrics):
-            fig_title = None
-            save_dir = 'figures/'+ALG.upper()+("_GS" if GS else "")+'/'
-            performance_profile(measure[:,:,imetr],labels,fig_title,metr,save_dir+'/perf/')
-            budget_profile(measure[:,:,imetr],dimen,labels,fig_title,metr,save_dir+'/budget/')
 
 """ Random Block-Coordinate Gauss-Newton """
 def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitionBlock=False, gaussSouthwell=False):
@@ -530,94 +514,6 @@ def b_Armijo(U_S, s_S, x, f, gradf_S):
     while f(x + alpha*s) > fx + alpha*delta and alpha > 0:
         alpha *= RHO
     return alpha
-
-
-""" Calculate and Plot Performance Profile """
-def performance_profile(measure,solver_labels,fig_title,fig_name,save_dir):
-    '''
-    :param measure: prob x solver array,
-     smallest values assumed to be the best
-    '''
-
-    # Set up colour brewer colours
-    plt.rc('axes', prop_cycle=cycler('color', qualitative.Set1_9.mpl_colors))
-
-    pn = measure.shape[0]
-    sn = measure.shape[1]
-
-    warnings.simplefilter("ignore", RuntimeWarning)
-    ratio = np.zeros((pn,sn))
-    for p in range(pn):
-        for s in range(sn):
-            ratio[p,s] = measure[p,s]/min(measure[p,:])
-    warnings.resetwarnings()
-
-    def profile(s,t):
-        prob = 0
-        for p in range(pn):
-            if ratio[p,s] <= t:
-                prob += 1
-        return prob/pn
-
-    t = np.linspace(1,50)
-    prof = np.vectorize(profile)
-    plt.figure(100)
-    plt.clf()
-    for s in range(sn):
-        y = prof(s,t)
-        plt.plot(t,y,'-',linewidth=2,clip_on=False)
-    plt.grid()
-    plt.xlabel('Performance Ratio')
-    plt.ylabel('% Problems Solved')
-    plt.legend(solver_labels,loc='lower right')
-    if fig_title:
-        plt.title(fig_title,fontsize=13)
-
-    if not os.path.exists(save_dir): os.makedirs(save_dir)
-    plt.savefig(save_dir + '/' + fig_name)
-
-""" Calculate and Plot Budget Profile """
-def budget_profile(measure,dimen,solver_labels,fig_title,fig_name,save_dir):
-    '''
-    :param measure: prob x solver array,
-     smallest values assumed to be the best
-    '''
-
-    # Set up colour brewer colours
-    plt.rc('axes', prop_cycle=cycler('color', qualitative.Set1_9.mpl_colors))
-
-    pn = measure.shape[0]
-    sn = measure.shape[1]
-
-    # scale budget by dimension
-    ratio = np.zeros((pn, sn))
-    for p in range(pn):
-        for s in range(sn):
-            ratio[p,s] = measure[p,s]/dimen[p]
-
-    def profile(s,m):
-        prob = 0
-        for p in range(pn):
-            if ratio[p,s] <= m:
-                prob += 1
-        return prob/pn
-
-    m = np.linspace(0,50)
-    prof = np.vectorize(profile)
-    plt.figure(100)
-    plt.clf()
-    for s in range(sn):
-        y = prof(s,m)
-        plt.plot(m,y,'-',linewidth=2,clip_on=False)
-    plt.grid()
-    plt.xlabel('Budget')
-    plt.ylabel('% Problems Solved')
-    plt.legend(solver_labels,loc='lower right')
-    if fig_title:
-        plt.title(fig_title,fontsize=13)
-
-    if not os.path.exists(save_dir): os.makedirs(save_dir)
-    plt.savefig(save_dir + '/' + fig_name)
 
 """ Output Monitoring Information """
 def monitor(k, r, x, f, delta, algorithm, gradf, gradf_S=None):
