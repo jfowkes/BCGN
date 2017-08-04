@@ -217,20 +217,21 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         while p_in != n and stopping_rule:
 
             # Increase block size
-            #print 'Increasing block size to:', p_in+STEP
+            step = min(STEP,n-p_in)
+            #print 'Increasing block size to:', p_in+step
             if gaussSouthwell:
-                inds = sorted_nginds[p_in:p_in+STEP]
+                inds = sorted_nginds[p_in:p_in+step]
             else:
                 S = np.nonzero(U_S)[0]
                 rem_inds = np.setdiff1d(np.arange(n),S)
-                inds = np.random.choice(rem_inds,STEP,replace=False)
-            U_inds = np.zeros((n,STEP))
+                inds = np.random.choice(rem_inds,step,replace=False)
+            U_inds = np.zeros((n,step))
             for j in range(0,len(inds)):
                 U_inds[inds[j],j] = 1
             U_S = np.hstack((U_S,U_inds))
             J_S = Jx.dot(U_S)
             gradf_S = J_S.T.dot(rx)
-            p_in += STEP
+            p_in += step
 
             # Output
             #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
