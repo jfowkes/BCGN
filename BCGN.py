@@ -1,5 +1,6 @@
 """ Block-Coordinate Gauss-Newton """
 from __future__ import division
+from numba import jit
 import numpy as np
 import scipy.linalg as linalg
 import math as ma
@@ -17,7 +18,7 @@ def main():
     NO_INSTANCES = 100 # No. random runs
     FTOL = 1e-10
     GS = False
-    ALG = 'tr'
+    ALG = 'tr_approx'
 
     # Plotting parameters
     PLOT = True
@@ -160,7 +161,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
 
     # Set initial trust region radius
     delta = None
-    if algorithm == 'tr' or algorithm == 'reg':
+    if algorithm.startswith('tr') or algorithm == 'reg':
         delta = linalg.norm(gradf(x0))/10
 
     # Initialize block partition
@@ -200,6 +201,8 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         # Solve subproblem
         if algorithm == 'tr':
             s_S = trs(J_S, gradf_S, delta)
+        elif algorithm == 'tr_approx':
+            s_S = trs_approx(J_S, gradf_S, delta)
         elif algorithm == 'reg':
             s_S, delta = reg(J_S, gradf_S, delta)
         else:
@@ -239,6 +242,8 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
             # Solve subproblem
             if algorithm == 'tr':
                 s_S = trs(J_S, gradf_S, delta)
+            elif algorithm == 'tr_approx':
+                s_S = trs_approx(J_S, gradf_S, delta)
             elif algorithm == 'reg':
                 s_S, delta = reg(J_S, gradf_S, delta)
             else:
@@ -252,7 +257,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
             #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*linalg.norm(s_S)**2 > 0
 
         # Update parameter and take step
-        if algorithm == 'tr':
+        if algorithm.startswith('tr'):
             x, delta = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta)
         elif algorithm == 'reg':
             x, delta = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, GAMMA1=2., GAMMA2=0.5) # grow/shrink swapped
@@ -402,23 +407,25 @@ def reg(J_S, gradf_S, delta):
 
     return s_S, delta
 
-""" Steihaug-Toint Conjugate Gradient (SLOW even with Numba) """
+""" Steihaug-Toint Conjugate Gradient """
+@jit(nopython=True, nogil=True, cache=True)
 def trs_approx(J_S, gradf_S, delta):
     p = J_S.shape[1]
 
-    # Gradient tolerance
-    GTOL = 1e-15
+    # Tolerance
+    TAU = 1e-5
 
     # Initialize
     s_S = np.zeros(p)
     g_S = gradf_S
-    ng_S2 = linalg.norm(g_S)**2
+    H_S = np.dot(J_S.T, J_S)
+    ng_S2 = norm(g_S)**2
     p_S = -g_S
 
-    while linalg.norm(g_S) > GTOL:
+    while norm(np.dot(H_S, s_S) + gradf_S) > TAU*norm(gradf_S):
 
         # Calculate curvature
-        Jp_S = J_S.dot(p_S)
+        Jp_S = np.dot(J_S, p_S)
         kappa = np.dot(Jp_S, Jp_S)
 
         # Check for zero curvature
@@ -430,16 +437,16 @@ def trs_approx(J_S, gradf_S, delta):
         alpha = ng_S2/kappa
 
         # Trust region active: boundary solution
-        if linalg.norm(s_S + alpha*p_S) >= delta:
+        if norm(s_S + alpha*p_S) >= delta:
             sigma = quadeq_pos(np.dot(p_S, p_S), 2 * np.dot(s_S, p_S), np.dot(s_S, s_S) - delta ** 2) # Find quadratic root
             return s_S + sigma * p_S
 
         # Take step for s and g
         s_S = s_S + alpha * p_S
-        g_S = g_S + alpha * J_S.T.dot(J_S).dot(p_S)
+        g_S = g_S + alpha * np.dot(H_S, p_S)
 
         # Calculate step length for p
-        ng_S2_new = linalg.norm(g_S)**2
+        ng_S2_new = norm(g_S)**2
         beta = ng_S2_new/ng_S2
         ng_S2 = ng_S2_new
 
@@ -463,9 +470,16 @@ def quadeq(a, b, c):
     return x1, x2
 
 """ Return positive root of quadratic equation """
+@jit(nopython=True, nogil=True, cache=True)
 def quadeq_pos(a, b, c):
-    x1,x2 = quadeq(a,b,c)
+    x1 = np.divide(-b + ma.sqrt(b * b - 4 * a * c), 2 * a)
+    x2 = np.divide(-b - ma.sqrt(b * b - 4 * a * c), 2 * a)
     return max(0,x1,x2)
+
+""" Return 2-norm of vector """
+@jit(nopython=True, nogil=True, cache=True)
+def norm(v):
+    return ma.sqrt(np.dot(v,v))
 
 """ Line Search """
 def line_search(f, x, U_S, J_S, gradf_S):
