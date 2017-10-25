@@ -21,23 +21,32 @@ def main():
     ALG = 'tr_approx'
 
     # Plotting parameters
-    PLOT = True
+    PLOT = False
     SAVEFIG = False
 
     # Loop over test functions
-    kappas = [1, 0.7]
-    funcs = ['ARGTRIG','ARTIF','ARWHDNE','BDVALUES','BRATU2D','BRATU3D','BROWNALE','BROYDN3D','BROYDNBD','CBRATU2D',
-             'CBRATU3D','CHANDHEQ','DRCAVTY1','DRCAVTY2','INTEGREQ','OSCIPANE','QR3D','QR3DBD','YATP1SQ','YATP2SQ']
-    args = [{'N':100},{'N':100},{'N':100},{'NDP':102},{'P':10},{'P':5},{'N':100},{'N':100},{'N':100},{'P':7},
-            {'P':4},{'N':100},{'M':10},{'M':10},{'N':100},{'N':100},{'M':10},{'M':10},{'N':10},{'N':10}]
-    fxopts = np.zeros(20)
+    kappas = [1, 0.6, 0.7, 0.8, 0.9]
+    funcs = ['ARGTRIG', 'ARTIF', 'BDVALUES', 'BRATU2D', 'BROWNALE', 'BROYDN3D', 'BROYDNBD', 'CBRATU2D', 'CHANDHEQ',
+             'CHEMRCTA',
+             'CHNRSBNE', 'DRCAVTY1', 'DRCAVTY3', 'EIGENA', 'EIGENB', 'FLOSP2TL', 'FLOSP2TM', 'HYDCAR20', 'INTEGREQ',
+             'MOREBVNE',
+             'MSQRTA', 'MSQRTB', 'OSCIGRNE', 'POWELLSE', 'SEMICN2U', 'SEMICON2', 'SPMSQRT', 'VARDIMNE', 'LUKSAN11',
+             'LUKSAN21',
+             'YATP1SQ', 'YATP2SQ']
+    args = [{'N': 100}, {'N': 100}, {'NDP': 102}, {'P': 10}, {'N': 100}, {'N': 100}, {'N': 100}, {'P': 7}, {'N': 100},
+            {'N': 50},
+            {'N': 50}, {'M': 10}, {'M': 10}, {'N': 10}, {'N': 10}, {'M': 2}, {'M': 2}, None, {'N': 100}, {'N': 100},
+            {'P': 10}, {'P': 10}, {'N': 100}, {'N': 100}, {'N': 100, 'LN': 90}, {'N': 100, 'LN': 90}, {'M': 34},
+            {'N': 100}, None, None,
+            {'N': 10}, {'N': 10}]
+    fxopts = np.zeros(32)
 
     # Performance profile data
     if PLOT:
         import matplotlib.pyplot as plt
     else:
         metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
-        measures = np.full((len(funcs),3+1,len(metrics),NO_INSTANCES),np.nan)
+        measures = np.full((len(funcs),len(kappas)+2,len(metrics),NO_INSTANCES),np.nan)
         basename = 'BCGN-'+ALG.upper()+'-'+time.strftime('%d.%m.%Y-%H:%M:%S')
         pickle.dump(funcs, open(basename+'.funcs', 'wb'), protocol=-1)
 
@@ -67,14 +76,16 @@ def main():
                 #blocks = np.arange(1,n+1)
                 #labels += [r'$' + str(p) + '$-BCGN' for p in range(1,n)]
                 #labels += ['GN']
+                ishift = 0
                 blocks = [2,int(round(n/2)),n]
                 labels += [r'$2$-BCGN',r'$\frac{n}{2}$-BCGN','GN']
             else:
+                ishift = 2+ikappa
                 blocks = [2]
-                labels += [r'$2$-A-BCGN']
+                labels += [r'$2$-A-BCGN:'+str(kappa)]
             for ip, p in enumerate(blocks):
                 legend += ['Block Size ' + str(p)]
-                print '\n======', labels[3*ikappa+ip], '======'
+                print '\n======', labels[ishift+ip], '======'
 
                 # Plotting
                 if PLOT:
@@ -95,7 +106,7 @@ def main():
                     if PLOT: # Plotting
                         Ys[:,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
                     else: # performance profiles
-                        measures[ifunc,3*ikappa+ip,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,None,kappa,algorithm=ALG,gaussSouthwell=GS)
+                        measures[ifunc,ishift+ip,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,None,kappa,algorithm=ALG,gaussSouthwell=GS)
 
                 # Plotting
                 if PLOT:
@@ -110,6 +121,7 @@ def main():
                 else:
                     pickle.dump(np.nanmean(measures, axis=-1), open(basename+'.measure', 'wb'), protocol=-1)
                     pickle.dump(dimen, open(basename+'.dimen', 'wb'), protocol=-1)
+                    pickle.dump(labels, open(basename+'.labels', 'wb'), protocol=-1)
 
             # Plotting
             if PLOT:
