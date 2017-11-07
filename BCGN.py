@@ -25,7 +25,7 @@ def main():
     SAVEFIG = False
 
     # Loop over test functions
-    kappas = [1, 0.6, 0.7, 0.8, 0.9]
+    kappas = [1, 0.7]
     funcs = ['ARGTRIG', 'ARTIF', 'BDVALUES', 'BRATU2D', 'BROWNALE', 'BROYDN3D', 'BROYDNBD', 'CBRATU2D', 'CHANDHEQ',
              'CHEMRCTA',
              'CHNRSBNE', 'DRCAVTY1', 'DRCAVTY3', 'EIGENA', 'EIGENB', 'FLOSP2TL', 'FLOSP2TM', 'HYDCAR20', 'INTEGREQ',
@@ -143,7 +143,7 @@ def main():
                 if SAVEFIG:
                     sfix = ''
                     if GS: sfix = '_GS'
-                    dir = 'figures/'+ALG.upper()+'/'+str(kappa)+sfix
+                    dir = 'results/'+ALG.upper()+'/'+str(kappa)+sfix
                     if not os.path.exists(dir): os.makedirs(dir)
                     alg = 'BCGN' if kappa == 1 else 'A-BCGN'
                     plt.savefig(dir+'/'+func+'_'+alg+'_'+str(NO_INSTANCES)+'runs')
@@ -207,7 +207,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         rx = r(x)
         gradf_S = J_S.T.dot(rx)
 
-        # Output
+        # Debug output
         #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
 
         # Solve subproblem
@@ -228,7 +228,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*linalg.norm(s_S)**2 > 0
 
         # Iteratively refine block size
-        p_in = p
+        p_in = len(S)
         while p_in != n and stopping_rule:
 
             # Increase block size
@@ -248,7 +248,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
             gradf_S = J_S.T.dot(rx)
             p_in += step
 
-            # Output
+            # Debug output
             #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
 
             # Solve subproblem
@@ -268,6 +268,9 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
             #Jx_S = J_S.dot(x.dot(U_S))
             #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*linalg.norm(s_S)**2 > 0
 
+        budget += p_in
+        #print 'Iteration:', k, 'max block size:', p_in
+
         # Update parameter and take step
         if algorithm.startswith('tr'):
             x, delta = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta)
@@ -275,10 +278,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
             x, delta = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, GAMMA1=2., GAMMA2=0.5) # grow/shrink swapped
         else:
             x = x + delta*U_S.dot(s_S)
-
         k += 1
-        budget += len(S)
-        #print 'Iteration:', k, 'max block size:', len(S)
 
         # function decrease metrics
         if fig is None:
@@ -290,9 +290,9 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         else: # plotting
             plot_data[0,k] = f(x)-fxopt
             plot_data[1,k] = linalg.norm(gradf(x))
-            plot_data[2,k] = len(S)
+            plot_data[2,k] = p_in
 
-    # Output
+    # Debug output
     #monitor(k, r, x, f, delta, algorithm, gradf)
 
     # Return function decrease metrics (some unsatisfied)
@@ -546,7 +546,7 @@ def b_Armijo(U_S, s_S, x, f, gradf_S):
 def monitor(k, r, x, f, delta, algorithm, gradf, gradf_S=None):
 
     print '++++ Iteration', k, '++++'
-    if algorithm == 'tr':
+    if algorithm.startswith('tr'):
         print 'delta: %.2e' % delta
     elif algorithm == 'reg':
         print 'sigma: %.2e' % delta

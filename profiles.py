@@ -10,7 +10,7 @@ import os
 
 # Timestamp of data
 alg = 'tr_approx'
-timestamp = '04.10.2017-12:01:32'
+timestamp = '03.11.2017-15:34:28'
 
 def main():
 
