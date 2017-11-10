@@ -283,7 +283,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         # function decrease metrics
         if fig is None:
             for itau, tau in enumerate([1e-1,1e-3,1e-5,1e-7]):
-                if np.isnan(tau_budget[itau]) and linalg.norm(gradf(x)) <= tau*linalg.norm(gradf(x0)):
+                if np.isnan(tau_budget[itau]) and np.linalg.norm(gradf(x)) <= tau*np.linalg.norm(gradf(x0)):
                     tau_budget[itau] = budget
             if np.all(np.isfinite(tau_budget)): # Stop if all function decrease metrics satisfied
                 return tau_budget
