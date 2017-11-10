@@ -229,7 +229,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
 
         # Iteratively refine block size
         p_in = len(S)
-        while p_in != n and stopping_rule:
+        while kappa != 1 and p_in != n and stopping_rule:
 
             # Increase block size
             step = min(STEP,n-p_in)
