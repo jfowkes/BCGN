@@ -424,8 +424,9 @@ def reg(J_S, gradf_S, delta):
 def trs_approx(J_S, gradf_S, delta):
     p = J_S.shape[1]
 
-    # Tolerance
-    TAU = 1e-5
+    # Parameters
+    TAU = 1e-5 # Tolerance
+    MAXITER = 2*p # Max iterations
 
     # Initialize
     s_S = np.zeros(p)
@@ -434,7 +435,8 @@ def trs_approx(J_S, gradf_S, delta):
     ng_S2 = norm(g_S)**2
     p_S = -g_S
 
-    while norm(np.dot(H_S, s_S) + gradf_S) > TAU*norm(gradf_S):
+    k = 0
+    while norm(np.dot(H_S, s_S) + gradf_S) > TAU*norm(gradf_S) and k < MAXITER:
 
         # Calculate curvature
         Jp_S = np.dot(J_S, p_S)
@@ -465,7 +467,10 @@ def trs_approx(J_S, gradf_S, delta):
         # Take step for p
         p_S = -g_S + beta * p_S
 
-    # Trust region inactive: interior solution
+        # Update iteration count
+        k += 1
+
+    # Trust region inactive: interior solution (or failed to converge)
     return s_S
 
 
