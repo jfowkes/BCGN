@@ -101,7 +101,6 @@ def main():
                     print 'Run:',iseed
                     np.random.seed(seed) # Fix RNG seed
 
-                    #if not (func == 'OSCIPANE' and kappa == 0.7 and iseed in [40]):
                     # Run RBCGN
                     if PLOT: # Plotting
                         Ys[:,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
@@ -223,9 +222,9 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         # Loop tolerance
         Js_S = J_S.dot(s_S)
         Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
-        stopping_rule = -Delta_m + (1-kappa)/2*linalg.norm(rx)**2 > 0
+        stopping_rule = -Delta_m + (1-kappa)/2*np.power(linalg.norm(rx),2) > 0
         #Jx_S = J_S.dot(x.dot(U_S))
-        #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*linalg.norm(s_S)**2 > 0
+        #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*np.power(linalg.norm(s_S),2) > 0
 
         # Iteratively refine block size
         p_in = len(S)
@@ -264,9 +263,9 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
             # Loop tolerance
             Js_S = J_S.dot(s_S)
             Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
-            stopping_rule = -Delta_m + (1-kappa)/2*linalg.norm(rx)**2 > 0
+            stopping_rule = -Delta_m + (1-kappa)/2*np.power(linalg.norm(rx),2) > 0
             #Jx_S = J_S.dot(x.dot(U_S))
-            #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*linalg.norm(s_S)**2 > 0
+            #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*np.power(linalg.norm(s_S),2) > 0
 
         budget += p_in
         #print 'Iteration:', k, 'max block size:', p_in
