@@ -274,7 +274,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         if algorithm.startswith('tr'):
             x, delta = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta)
         elif algorithm == 'reg':
-            x, delta = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, GAMMA1=2., GAMMA2=0.5) # grow/shrink swapped
+            x, delta = reg_update(f, x, s_S, U_S, Delta_m, delta) # same as tr_update with grow/shrink swapped
         else:
             x = x + delta*U_S.dot(s_S)
         k += 1
@@ -301,11 +301,13 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         return plot_data
 
 """ Trust Region Update """
-def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, GAMMA1=0.5, GAMMA2=2., update='standard'):
+def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update='standard'):
 
     # Trust Region parameters
     ETA1 = 0.25
     ETA2 = 0.75
+    GAMMA1 = 0.5
+    GAMMA2 = 2.
     COUPL = 0.1
     DELTA_MIN = 1e-150
     DELTA_MAX = 1e150
@@ -399,6 +401,35 @@ def trs(J_S, gradf_S, delta):
         ns_S = linalg.norm(s_S)
 
     return s_S
+
+""" Regularization Update (same as TR update with grow/shrink swapped) """
+def reg_update(f, x, s_S, U_S, Delta_m, sigma):
+
+    # Trust Region parameters
+    ETA1 = 0.25
+    ETA2 = 0.75
+    GAMMA1 = 2.
+    GAMMA2 = 0.5
+    SIGMA_MIN = 1e-150
+    SIGMA_MAX = 1e150
+
+    # Evaluate sufficient decrease
+    s = U_S.dot(s_S)
+    rho = (f(x) - f(x+s))/Delta_m
+
+    # Accept trial point
+    if rho >= ETA1:
+        x = x + s
+
+    # Update trust region radius
+    if rho < ETA1:
+        sigma *= GAMMA1
+        sigma = min(sigma, SIGMA_MAX)
+    elif rho >= ETA2:
+        sigma *= GAMMA2
+        sigma = max(sigma, SIGMA_MIN)
+
+    return x, sigma
 
 """ Regularization Subproblem """
 def reg(J_S, gradf_S, delta):
@@ -606,4 +637,5 @@ def get_test_problem(name, sifParams):
 
     return r, J, x0
 
-main()
+if __name__ == "__main__":
+    main()
