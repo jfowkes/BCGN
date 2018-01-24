@@ -6,11 +6,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import warnings
 import pickle
+import sys
 import os
 
 # Timestamp of data
 alg = 'tr_approx'
-timestamp = '03.11.2017-15:34:28'
+timestamp = sys.argv[1]
 
 def main():
 
