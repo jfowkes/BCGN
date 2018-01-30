@@ -18,7 +18,7 @@ def main():
     NO_INSTANCES = 100 # No. random runs
     FTOL = 1e-10
     GS = False
-    ALG = 'tr_approx'
+    ALG = 'tr'
 
     # Plotting parameters
     PLOT = False
@@ -393,6 +393,10 @@ def trs(J_S, gradf_S, delta):
         w_S = linalg.solve_triangular(R_S.T, s_S, lower=True)
         nw_S = linalg.norm(w_S)
         lamda += (ns_S - delta)/delta * (ns_S/nw_S)**2
+
+        # Handle underflow in newton iteration: return suboptimal step
+        if lamda < 0:
+            return s_S
 
         # Solve *perturbed* normal equations to find search direction
         _, R_S = linalg.qr(np.vstack((J_S, ma.sqrt(lamda) * np.eye(p))), mode='economic')

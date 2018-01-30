@@ -10,7 +10,7 @@ import sys
 import os
 
 # Timestamp of data
-alg = 'tr_approx'
+alg = 'tr'
 timestamp = sys.argv[1]
 
 def main():
