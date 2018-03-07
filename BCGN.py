@@ -304,7 +304,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
 def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update='standard'):
 
     # Trust Region parameters
-    ETA1 = 0.25
+    ETA1 = 0.1
     ETA2 = 0.75
     GAMMA1 = 0.5
     GAMMA2 = 2.
