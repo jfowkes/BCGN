@@ -9,14 +9,12 @@ import pickle
 import sys
 import os
 
-# Timestamp of data
-alg = 'tr'
-timestamp = sys.argv[1]
+# Dataset name
+basename = sys.argv[1]
 
 def main():
 
     # Load data
-    basename = 'BCGN-'+alg.upper()+'-'+timestamp
     funcs = pickle.load(open(basename+'.funcs','rb'))
     dimen = pickle.load(open(basename+'.dimen','rb'))
     measure = pickle.load(open(basename+'.measure','rb'))
