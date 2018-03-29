@@ -170,11 +170,6 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
     budget = 0
     tau_budget = np.full(4,np.nan)
 
-    # Set initial trust region radius
-    delta = None
-    if algorithm.startswith('tr') or algorithm == 'reg':
-        delta = linalg.norm(gradf(x0))/10
-
     # Initialize block partition
     if partitionBlock:
         block_part = np.random.permutation(np.arange(x0.size))
@@ -182,6 +177,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
     k = 0
     x = x0
     n = x.size
+    delta = None
     while (not fig and budget < it_max*n) or (fig and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
 
         # Evaluate full gradient for Gauss-Southwell
@@ -205,6 +201,12 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         J_S = Jx.dot(U_S)
         rx = r(x)
         gradf_S = J_S.T.dot(rx)
+
+        # Set initial trust region radius
+        if k == 0 and algorithm.startswith('tr') or algorithm == 'reg':
+            delta = linalg.norm(gradf_S)/10
+            if delta == 0:
+                delta = 1
 
         # Debug output
         #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
