@@ -1,5 +1,8 @@
-# PyCUTEr
-pycuter/
+# PyCUTEst (separate repo)
+pycutest
+
+# Results
+results/
 
 # Figures
 figures/
