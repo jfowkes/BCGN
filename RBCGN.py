@@ -82,6 +82,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         Js_S = J_S.dot(s_S)
         Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
         stopping_rule = -Delta_m + (1-kappa)/2*np.power(np.linalg.norm(rx),2) > 0
+        #stopping_rule = linalg.norm(gradf_S) > kappa*delta
         #Jx_S = J_S.dot(x.dot(U_S))
         #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*np.power(linalg.norm(s_S),2) > 0
 
@@ -123,6 +124,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
             Js_S = J_S.dot(s_S)
             Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
             stopping_rule = -Delta_m + (1-kappa)/2*np.power(np.linalg.norm(rx),2) > 0
+            #stopping_rule = linalg.norm(gradf_S) > kappa*delta
             #Jx_S = J_S.dot(x.dot(U_S))
             #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*np.power(linalg.norm(s_S),2) > 0
 
@@ -130,6 +132,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         #print 'Iteration:', k, 'max block size:', p_in
 
         # Update parameter and take step
+        #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
             x, delta = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta)
         elif algorithm == 'reg':

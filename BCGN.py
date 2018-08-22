@@ -7,8 +7,8 @@ import pickle
 import time
 import os
 import sys
-sys.path.append('./cutest/')
-import cutestmgr
+sys.path.append('../pycutest/')
+import pycutest
 
 """ Main function """
 def main():
@@ -26,7 +26,10 @@ def main():
 
     # Loop over test functions
     from problems.cutest32_zero import funcs, args, dimen, fxopts
-    kappas = [1, 0.7]
+    kappas = [1,0.7]
+    #from problems.oscillatory import funcs, args, dimen, fxopts
+    #kappas = [1e-1,1e-2,1e-3,1e-4,1e-5,1e-6,1e-7,1e-8]
+    #kappas = [0.6,0.7,0.8,0.9]
 
     # Performance profile data
     if PLOT:
@@ -141,26 +144,10 @@ def main():
 def get_test_problem(name, sifParams):
 
     if name.isupper(): # CUTEst problem
-        if not cutestmgr.isCached(name):
-            cutestmgr.prepareProblem(name,sifParams=sifParams)
-        prob = cutestmgr.importProblem(name)
-        if sifParams != prob.getinfo()['sifparams']:
-            raise RuntimeError('Cached parameters for '+name+' do not match, please recompile.')
-
-        # Bugfix: ignore fixed variables
-        lb = prob.getinfo()['bl']
-        ub = prob.getinfo()['bu']
-        idx_fixed = np.where(ub==lb)[0]
-        idx_free = np.where(ub!=lb)[0]
-        def pad(x):
-            x_full = np.zeros(len(lb))
-            x_full[idx_free] = x
-            x_full[idx_fixed] = lb[idx_fixed]
-            return x_full
-
-        def r(x): return prob.cons(pad(x))
-        def J(x): return prob.cons(pad(x),True)[1][:,idx_free]
-        x0 = prob.getinfo()['x'][idx_free]
+        prob = pycutest.import_problem(name,sifParams=sifParams)
+        def r(x): return prob.cons(x)
+        def J(x): return prob.cons(x,gradient=True)[1]
+        x0 = prob.x0
 
     else: # More-Garbow-Hillstrom problem
         mod = __import__('MGH', fromlist=[name])

@@ -1,11 +1,11 @@
-# PyCUTEst (separate repo)
-pycutest
-
 # Results
 results/
 
 # Figures
 figures/
+
+# Old files
+old/
 
 # Mac temp files
 .DS_Store
