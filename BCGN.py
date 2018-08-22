@@ -17,14 +17,16 @@ def main():
     IT_MAX = 50 # Max iterations (plot=True) / full gradient evaluations (plot=False)
     NO_INSTANCES = 100 # No. random runs
     FTOL = 1e-10
-    GS = False
     ALG = 'tr'
 
     # Plotting parameters
     PLOT = False
     SAVEFIG = False
 
-    # Loop over test functions
+    # Sampling function
+    from sampling_funcs import random_sample as sampling_func
+
+    # Test functions
     from problems.cutest32_zero import funcs, args, dimen, fxopts
     kappas = [1,0.7]
     #from problems.oscillatory import funcs, args, dimen, fxopts
@@ -40,17 +42,16 @@ def main():
         basename = 'BCGN-'+ALG.upper()+'-'+time.strftime('%d.%m.%Y-%H:%M:%S')
         pickle.dump(funcs, open(basename+'.funcs', 'wb'), protocol=-1)
 
-    #dimen = []
+    # Loop over test functions
     for ifunc, func in enumerate(funcs):
         print('====== ' + func + ' ======')
 
         # Get test function
         r, J, x0 = get_test_problem(func, args[ifunc])
         n = x0.size
-        #dimen += [n]
         fxopt = fxopts[ifunc]
 
-        labels = []
+        all_labels = []
         for ikappa, kappa in enumerate(kappas):
             print('\n====== Kappa: ' + str(kappa) + ' ======')
 
@@ -61,21 +62,25 @@ def main():
                 ax2 = fig.add_subplot(1,3,2)
                 ax3 = fig.add_subplot(1,3,3)
 
+            # Set block sizes
             legend = []
             if kappa == 1:
                 #blocks = np.arange(1,n+1)
-                #labels += [r'$' + str(p) + '$-BCGN' for p in range(1,n)]
+                #labels = [r'$' + str(p) + '$-BCGN' for p in range(1,n)]
                 #labels += ['GN']
                 ishift = 0
                 blocks = [2,int(round(n/2)),n]
-                labels += [r'$2$-BCGN',r'$\frac{n}{2}$-BCGN','GN']
+                labels = [r'$2$-BCGN',r'$\frac{n}{2}$-BCGN','GN']
             else:
                 ishift = 2+ikappa
                 blocks = [2]
-                labels += [r'$2$-A-BCGN:'+str(kappa)]
+                labels = [r'$2$-A-BCGN:'+str(kappa)]
+            all_labels += labels
+
+            # For each block size
             for ip, p in enumerate(blocks):
                 legend += ['Block Size ' + str(p)]
-                print('\n======', labels[ishift+ip], '======')
+                print('\n======', labels[ip], '======')
 
                 # Plotting
                 if PLOT:
@@ -88,14 +93,14 @@ def main():
                 else:
                     seeds = np.linspace(0,1e3,NO_INSTANCES,dtype=int)
                 for iseed, seed in enumerate(seeds):
-                    print('Run:',iseed)
+                    print('Run:',iseed+1)
                     np.random.seed(seed) # Fix RNG seed
 
                     # Run RBCGN
                     if PLOT: # Plotting
-                        Ys[:,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,fig,kappa,algorithm=ALG,gaussSouthwell=GS)
+                        Ys[:,:,iseed] = RBCGN(r,J,x0,sampling_func,fxopt,IT_MAX,FTOL,p,fig,kappa,algorithm=ALG)
                     else: # performance profiles
-                        measures[ifunc,ishift+ip,:,iseed] = RBCGN(r,J,x0,fxopt,IT_MAX,FTOL,p,None,kappa,algorithm=ALG,gaussSouthwell=GS)
+                        measures[ifunc,ishift+ip,:,iseed] = RBCGN(r,J,x0,sampling_func,fxopt,IT_MAX,FTOL,p,None,kappa,algorithm=ALG)
 
                 # Plotting
                 if PLOT:
@@ -110,7 +115,7 @@ def main():
                 else:
                     pickle.dump(np.nanmean(measures, axis=-1), open(basename+'.measure', 'wb'), protocol=-1)
                     pickle.dump(dimen, open(basename+'.dimen', 'wb'), protocol=-1)
-                    pickle.dump(labels, open(basename+'.labels', 'wb'), protocol=-1)
+                    pickle.dump(all_labels, open(basename+'.labels', 'wb'), protocol=-1)
 
             # Plotting
             if PLOT:
@@ -130,9 +135,7 @@ def main():
                 ax3.grid(True)
                 plt.gcf().set_tight_layout(True)
                 if SAVEFIG:
-                    sfix = ''
-                    if GS: sfix = '_GS'
-                    dir = 'results/'+ALG.upper()+'/'+str(kappa)+sfix
+                    dir = 'results/'+ALG.upper()+'/'+str(kappa)
                     if not os.path.exists(dir): os.makedirs(dir)
                     alg = 'BCGN' if kappa == 1 else 'A-BCGN'
                     plt.savefig(dir+'/'+func+'_'+alg+'_'+str(NO_INSTANCES)+'runs')

@@ -6,7 +6,7 @@ import math as ma
 import warnings
 
 """ Trust Region Update """
-def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update='standard'):
+def tr_update(f, x, s_S, S, gradf_S, Delta_m, delta, update='standard'):
 
     # Trust Region parameters
     ETA1 = 0.1
@@ -18,7 +18,8 @@ def tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta, update='standard'):
     DELTA_MAX = 1e150
 
     # Evaluate sufficient decrease
-    s = U_S.dot(s_S)
+    s = np.zeros(len(x))
+    s[S] = s_S
     rho = (f(x) - f(x+s))/Delta_m
 
     # Couple delta to ng_S

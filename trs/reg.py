@@ -5,7 +5,7 @@ import scipy.linalg as linalg
 import math as ma
 
 """ Regularization Update (same as TR update with grow/shrink swapped) """
-def reg_update(f, x, s_S, U_S, Delta_m, sigma):
+def reg_update(f, x, s_S, S, Delta_m, sigma):
 
     # Trust Region parameters
     ETA1 = 0.25
@@ -16,7 +16,8 @@ def reg_update(f, x, s_S, U_S, Delta_m, sigma):
     SIGMA_MAX = 1e150
 
     # Evaluate sufficient decrease
-    s = U_S.dot(s_S)
+    s = np.zeros(len(x))
+    s[S] = s_S
     rho = (f(x) - f(x+s))/Delta_m
 
     # Accept trial point

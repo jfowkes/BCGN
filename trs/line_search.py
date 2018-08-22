@@ -5,13 +5,13 @@ import scipy.linalg as linalg
 import math as ma
 
 """ Line Search """
-def line_search(f, x, U_S, J_S, gradf_S):
+def line_search(f, x, S, J_S, gradf_S):
 
     # Solve block-reduced normal equations to find search direction
     s_S = search_direction(J_S, gradf_S)
 
     # Do backtracking line search to find step length
-    alpha = b_Armijo(U_S, s_S, x, f, gradf_S)
+    alpha = b_Armijo(S, s_S, x, f, gradf_S)
 
     return s_S, alpha
 
@@ -39,7 +39,7 @@ def search_direction(J_S, gradf_S):
     return s_S
 
 """ Backtracking-Armijo Line Search """
-def b_Armijo(U_S, s_S, x, f, gradf_S):
+def b_Armijo(S, s_S, x, f, gradf_S):
 
     # Linesearch parameters
     alpha = 5  # ALPHA_MAX > 0
@@ -47,7 +47,8 @@ def b_Armijo(U_S, s_S, x, f, gradf_S):
     RHO = 0.5  # in (0,1)
 
     fx = f(x)
-    s = U_S.dot(s_S)
+    s = np.zeros(len(x))
+    s[S] = s_S
     delta = C*np.dot(gradf_S,s_S)
     while f(x + alpha*s) > fx + alpha*delta and alpha > 0:
         alpha *= RHO

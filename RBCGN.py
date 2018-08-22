@@ -8,7 +8,8 @@ import numpy as np
 import scipy.linalg as linalg
 import math as ma
 
-def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitionBlock=False, gaussSouthwell=False):
+def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr'):
+    n = x0.size
 
     # Adaptive BCGN step size
     STEP = 5
@@ -27,35 +28,19 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
     budget = 0
     tau_budget = np.full(4,np.nan)
 
-    # Initialize block partition
-    if partitionBlock:
-        block_part = np.random.permutation(np.arange(x0.size))
+    # Initialize block sampling function
+    sampling_func(n,p,init=True)
 
     k = 0
     x = x0
-    n = x.size
     delta = None
     while (not fig and budget < it_max*n) or (fig and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
 
-        # Evaluate full gradient for Gauss-Southwell
-        if gaussSouthwell:
-            sorted_nginds = np.argsort(np.fabs(gradf(x)))[::-1]
-
         # Randomly select blocks
-        if gaussSouthwell:
-            S = sorted_nginds[0:p]
-        elif partitionBlock:
-            block_ind = np.random.choice(np.arange(0,n,p))
-            S = block_part[block_ind:block_ind+p]
-        else:
-            S = np.random.permutation(np.arange(n))[0:p]
-        U_S = np.zeros((n,len(S)))
-        for j in range(0,len(S)):
-            U_S[S[j],j] = 1
+        S = sampling_func(n,p)
 
         # Assemble block-reduced matrices
-        Jx = J(x)
-        J_S = Jx.dot(U_S)
+        J_S = J(x)[:,S]
         rx = r(x)
         gradf_S = J_S.T.dot(rx)
 
@@ -76,7 +61,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         elif algorithm == 'reg':
             s_S, delta = reg(J_S, gradf_S, delta)
         else:
-            s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
+            s_S, delta = line_search(f, x, S, J_S, gradf_S)
 
         # Loop tolerance
         Js_S = J_S.dot(s_S)
@@ -92,19 +77,13 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
 
             # Increase block size
             step = min(STEP,n-p_in)
-            #print 'Increasing block size to:', p_in+step
-            if gaussSouthwell:
-                inds = sorted_nginds[p_in:p_in+step]
-            else:
-                S = np.nonzero(U_S)[0]
-                rem_inds = np.setdiff1d(np.arange(n),S)
-                inds = np.random.choice(rem_inds,step,replace=False)
-            U_inds = np.zeros((n,step))
-            for j in range(0,len(inds)):
-                U_inds[inds[j],j] = 1
-            U_S = np.hstack((U_S,U_inds))
-            J_S = Jx.dot(U_S)
+            # print 'Increasing block size to:', p_in+step
+            S = sampling_func(n,step,step=True)
+
+            # Assemble block-reduced matrices
+            J_S = J(x)[:,S]
             gradf_S = J_S.T.dot(rx)
+
             p_in += step
 
             # Debug output
@@ -118,7 +97,7 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
             elif algorithm == 'reg':
                 s_S, delta = reg(J_S, gradf_S, delta)
             else:
-                s_S, delta = line_search(f, x, U_S, J_S, gradf_S)
+                s_S, delta = line_search(f, x, S, J_S, gradf_S)
 
             # Loop tolerance
             Js_S = J_S.dot(s_S)
@@ -134,11 +113,13 @@ def RBCGN(r, J, x0, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', partitio
         # Update parameter and take step
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
-            x, delta = tr_update(f, x, s_S, U_S, gradf_S, Delta_m, delta)
+            x, delta = tr_update(f, x, s_S, S, gradf_S, Delta_m, delta)
         elif algorithm == 'reg':
-            x, delta = reg_update(f, x, s_S, U_S, Delta_m, delta) # same as tr_update with grow/shrink swapped
+            x, delta = reg_update(f, x, s_S, S, Delta_m, delta) # same as tr_update with grow/shrink swapped
         else:
-            x = x + delta*U_S.dot(s_S)
+            s = np.zeros(n)
+            s[S] = s_S
+            x = x + delta*s
         k += 1
 
         # function decrease metrics
