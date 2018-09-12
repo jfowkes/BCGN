@@ -1,7 +1,7 @@
 """ Random Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
 from trs.trs_exact import trs, tr_update
-from trs.trs_approx import trs_approx
+from trs.trs_approx import trs_approx, trs_approx_precon
 from trs.reg import reg, reg_update
 from trs.line_search import line_search
 import numpy as np
@@ -58,6 +58,8 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             s_S = trs(J_S, gradf_S, delta)
         elif algorithm == 'tr_approx':
             s_S = trs_approx(J_S, gradf_S, delta)
+        elif algorithm == 'tr_approx_precon':
+            s_S = trs_approx_precon(J_S, gradf_S, delta)
         elif algorithm == 'reg':
             s_S, delta = reg(J_S, gradf_S, delta)
         else:
@@ -94,6 +96,8 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
                 s_S = trs(J_S, gradf_S, delta)
             elif algorithm == 'tr_approx':
                 s_S = trs_approx(J_S, gradf_S, delta)
+            elif algorithm == 'tr_approx_precon':
+                s_S = trs_approx_precon(J_S, gradf_S, delta)
             elif algorithm == 'reg':
                 s_S, delta = reg(J_S, gradf_S, delta)
             else:
