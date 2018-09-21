@@ -1,6 +1,7 @@
 """ Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
 from RBCGN import RBCGN
+from scipy.sparse import csr_matrix
 import numpy as np
 import warnings
 import pickle
@@ -47,7 +48,7 @@ def main():
         print('====== ' + func + ' ======')
 
         # Get test function
-        r, J, x0 = get_test_problem(func, args[ifunc])
+        r, J, x0 = get_test_problem(func, args[ifunc], ALG)
         n = x0.size
         fxopt = fxopts[ifunc]
 
@@ -144,19 +145,25 @@ def main():
                     plt.show()
 
 """ Test Problem Selector """
-def get_test_problem(name, sifParams):
+def get_test_problem(name, sifParams, algorithm):
 
     if name.isupper(): # CUTEst problem
         prob = pycutest.import_problem(name,sifParams=sifParams)
         def r(x): return prob.cons(x)
-        def J(x): return prob.cons(x,gradient=True)[1]
+        if 'tr_approx' in algorithm: # sparse Jacobian
+            def J(x): return prob.scons(x,gradient=True)[1].tocsr()
+        else: # dense Jacobian
+            def J(x): return prob.cons(x,gradient=True)[1]
         x0 = prob.x0
 
     else: # More-Garbow-Hillstrom problem
         mod = __import__('MGH', fromlist=[name])
         prob = getattr(mod, name)()
         r = prob.r
-        J = prob.jacobian
+        if 'tr_approx' in algorithm: # sparse Jacobian
+            def J(x): return csr_matrix(prob.jacobian(x))
+        else: # dense Jacobian
+            J = prob.jacobian
         x0 = prob.initial
 
     return r, J, x0

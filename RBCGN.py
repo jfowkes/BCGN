@@ -4,6 +4,7 @@ from trs.trs_exact import trs, tr_update
 from trs.trs_approx import trs_approx, trs_approx_precon
 from trs.reg import reg, reg_update
 from trs.line_search import line_search
+from scipy.sparse import csr_matrix
 import numpy as np
 import scipy.linalg as linalg
 import math as ma
@@ -40,9 +41,16 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         S = sampling_func(n,p)
 
         # Assemble block-reduced matrices
-        J_S = J(x)[:,S]
-        rx = r(x)
-        gradf_S = J_S.T.dot(rx)
+        if 'tr_approx' in algorithm: # sparse
+            U_S = csr_matrix((np.ones(len(S)),(S,range(len(S)))),shape=(n,len(S)))
+            J_S = J(x).dot(U_S)
+            J_ST = J_S.T.tocsr()
+            rx = r(x)
+            gradf_S = J_ST.dot(rx)
+        else: # dense
+            J_S = J(x)[:,S]
+            rx = r(x)
+            gradf_S = J_S.T.dot(rx)
 
         # Set initial trust region radius
         if k == 0 and algorithm.startswith('tr') or algorithm == 'reg':
@@ -57,9 +65,9 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         if algorithm == 'tr':
             s_S = trs(J_S, gradf_S, delta)
         elif algorithm == 'tr_approx':
-            s_S = trs_approx(J_S, gradf_S, delta)
+            s_S = trs_approx(J_S, J_ST, gradf_S, delta)
         elif algorithm == 'tr_approx_precon':
-            s_S = trs_approx_precon(J_S, gradf_S, delta)
+            s_S = trs_approx_precon(J_S, J_ST, gradf_S, delta)
         elif algorithm == 'reg':
             s_S, delta = reg(J_S, gradf_S, delta)
         else:
@@ -83,8 +91,14 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             S = sampling_func(n,step,step=True)
 
             # Assemble block-reduced matrices
-            J_S = J(x)[:,S]
-            gradf_S = J_S.T.dot(rx)
+            if 'tr_approx' in algorithm: # sparse
+                U_S = csr_matrix((np.ones(len(S)),(S,range(len(S)))),shape=(n,len(S)))
+                J_S = J(x).dot(U_S)
+                J_ST = J_S.T.tocsr()
+                gradf_S = J_ST.dot(rx)
+            else: # dense
+                J_S = J(x)[:,S]
+                gradf_S = J_S.T.dot(rx)
 
             p_in += step
 
@@ -95,9 +109,9 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             if algorithm == 'tr':
                 s_S = trs(J_S, gradf_S, delta)
             elif algorithm == 'tr_approx':
-                s_S = trs_approx(J_S, gradf_S, delta)
+                s_S = trs_approx(J_S, J_ST, gradf_S, delta)
             elif algorithm == 'tr_approx_precon':
-                s_S = trs_approx_precon(J_S, gradf_S, delta)
+                s_S = trs_approx_precon(J_S, J_ST, gradf_S, delta)
             elif algorithm == 'reg':
                 s_S, delta = reg(J_S, gradf_S, delta)
             else:
