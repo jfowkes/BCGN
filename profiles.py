@@ -9,16 +9,28 @@ import pickle
 import sys
 import os
 
-# Dataset name
+# Dataset name(s)
 basename = sys.argv[1]
+if len(sys.argv) > 2:
+    basename2 = sys.argv[2]
 
 def main():
 
-    # Load data
+    # Load data(s)
     funcs = pickle.load(open(basename+'.funcs','rb'))
     dimen = pickle.load(open(basename+'.dimen','rb'))
-    measure = pickle.load(open(basename+'.measure','rb'))
-    labels = pickle.load(open(basename + '.labels', 'rb'))
+    measure1 = pickle.load(open(basename+'.measure','rb'))
+    if len(sys.argv) > 2:
+        measure2 = pickle.load(open(basename2+'.measure','rb'))
+        measure = np.hstack((measure1,measure2))
+    else:
+        measure = measure1
+    labels1 = pickle.load(open(basename+'.labels','rb'))
+    if len(sys.argv) > 2:
+        labels2 = pickle.load(open(basename2+'.labels','rb'))
+        labels = np.hstack((labels1,labels2))
+    else:
+        labels = labels1
     metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
 
     # Plot and save performance, budget and grad. eval. profiles
