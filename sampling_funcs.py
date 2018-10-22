@@ -21,6 +21,9 @@ def random_sample(n,p,init=False,step=False):
     if init: # no initialization required
         return
 
+    if p == n: # return full block
+        return np.arange(n)
+
     if step: # adaptively increase block size
         rem_inds = np.setdiff1d(np.arange(n),S)
         SA = np.random.choice(rem_inds,size=p,replace=False)
@@ -45,6 +48,9 @@ def gauss_southwell(n,p,gradfx,init=False,step=False):
 
     if init: # no initialization required
         return
+
+    if p == n: # return full block
+        return np.arange(n)
 
     # Evaluate and sort full gradient
     sorted_nginds = np.argsort(np.fabs(gradfx))[::-1]
@@ -72,6 +78,9 @@ def cyclic(n,p,init=False,step=False):
     if init:
         cyclic_state = 0
         return
+
+    if p == n: # return full block
+        return np.arange(n)
 
     # sample coordinates
     i = cyclic_state % n
@@ -109,6 +118,9 @@ def partition(n,p,init=False,step=False):
     if init:
         block_part = np.random.permutation(np.arange(n))
         return
+
+    if p == n: # return full block
+        return np.arange(n)
 
     if step: # adaptively increase block size
         rem_part = block_part[~np.in1d(block_part,S)]
