@@ -4,8 +4,8 @@ results/
 # Figures
 figures/
 
-# Old files
-old/
+# Deprecated files
+deprecated/
 
 # Mac temp files
 .DS_Store
