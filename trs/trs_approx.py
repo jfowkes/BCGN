@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, unicode_literals, print_functi
 import numpy as np
 import scipy.linalg as linalg
 import math as ma
+import warnings
 
 """ Steihaug-Toint Conjugate Gradient """
 def trs_approx(J_S, J_ST, gradf_S, delta):
@@ -20,7 +21,7 @@ def trs_approx(J_S, J_ST, gradf_S, delta):
     p_S = -g_S
 
     k = 0
-    while linalg.norm(H_S_mul(s_S) + gradf_S) > TAU*linalg.norm(gradf_S) and k < MAXITER:
+    while np.linalg.norm(H_S_mul(s_S) + gradf_S) > TAU*np.linalg.norm(gradf_S) and k < MAXITER:
 
         # Calculate curvature
         Jp_S = J_S.dot(p_S)
@@ -35,7 +36,7 @@ def trs_approx(J_S, J_ST, gradf_S, delta):
         alpha = ng_S2/kappa
 
         # Trust region active: boundary solution
-        if linalg.norm(s_S + alpha*p_S) >= delta:
+        if np.linalg.norm(s_S + alpha*p_S) >= delta:
             sigma = quadeq_pos(np.dot(p_S, p_S), 2 * np.dot(s_S, p_S), np.dot(s_S, s_S) - delta ** 2) # Find quadratic root
             return s_S + sigma * p_S
 
@@ -117,6 +118,12 @@ def trs_approx_precon(J_S, J_ST, gradf_S, delta):
 
 """ Return positive root of quadratic equation """
 def quadeq_pos(a, b, c):
-    x1 = np.divide(-b + ma.sqrt(b * b - 4 * a * c), 2 * a)
-    x2 = np.divide(-b - ma.sqrt(b * b - 4 * a * c), 2 * a)
+    warnings.simplefilter("error", RuntimeWarning)
+    try:
+        x1 = np.divide(-b + ma.sqrt(b * b - 4 * a * c), 2 * a)
+        x2 = np.divide(-b - ma.sqrt(b * b - 4 * a * c), 2 * a)
+    except RuntimeWarning: # failed step: sigma too large
+        x1 = 0
+        x2 = 0
+    warnings.resetwarnings()
     return max(0,x1,x2)
