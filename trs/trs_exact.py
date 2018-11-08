@@ -93,6 +93,8 @@ def trs(J_S, gradf_S, delta):
         # Else trust region active
 
     # Trust region active: newton iteration
+    k = 1
+    lamda0 = lamda
     while ma.fabs(ns_S - delta) > KE * delta:
 
         # Solve R'w = s and calculate new lamda
@@ -109,6 +111,12 @@ def trs(J_S, gradf_S, delta):
         t_S = linalg.solve_triangular(R_S.T, -gradf_S, lower=True)
         s_S = linalg.solve_triangular(R_S, t_S)
         ns_S = linalg.norm(s_S)
+
+        # Handle cycling in newton iteration: restart with shifted lambda
+        if k == 15:
+            lamda = lamda0 + 1e-10
+            k = 0
+        k += 1
 
     return s_S
 
