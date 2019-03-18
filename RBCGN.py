@@ -77,9 +77,8 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         Js_S = J_S.dot(s_S)
         Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
         stopping_rule = -Delta_m + (1-kappa)/2*np.power(np.linalg.norm(rx),2) > 0
+        #stopping_rule = -Delta_m + kappa*delta*delta > 0
         #stopping_rule = linalg.norm(gradf_S) > kappa*delta
-        #Jx_S = J_S.dot(x.dot(U_S))
-        #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*np.power(linalg.norm(s_S),2) > 0
 
         # Iteratively refine block size
         p_in = len(S)
@@ -87,7 +86,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
 
             # Increase block size
             step = min(STEP,n-p_in)
-            # print 'Increasing block size to:', p_in+step
+            #print('Increasing block size to:',p_in+step)
             S = sampling_func(n,step,step=True)
 
             # Assemble block-reduced matrices
@@ -121,12 +120,11 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             Js_S = J_S.dot(s_S)
             Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
             stopping_rule = -Delta_m + (1-kappa)/2*np.power(np.linalg.norm(rx),2) > 0
+            #stopping_rule = -Delta_m + kappa*delta*delta > 0
             #stopping_rule = linalg.norm(gradf_S) > kappa*delta
-            #Jx_S = J_S.dot(x.dot(U_S))
-            #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*np.power(linalg.norm(s_S),2) > 0
 
         budget += p_in
-        #print 'Iteration:', k, 'max block size:', p_in
+        #print('Iteration:', k, 'max block size:', p_in)
 
         # Update parameter and take step
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)

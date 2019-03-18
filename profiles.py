@@ -28,6 +28,7 @@ def main():
     labels1 = pickle.load(open(basename+'.labels','rb'))
     if len(sys.argv) > 2:
         labels2 = pickle.load(open(basename2+'.labels','rb'))
+        #labels2 = [l+' beta' for l in labels2]
         labels = np.hstack((labels1,labels2))
     else:
         labels = labels1
