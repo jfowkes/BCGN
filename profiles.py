@@ -58,7 +58,7 @@ def performance_profile(measure, solver_labels, fig_title, fig_name, save_dir):
     ratio = np.zeros((pn, sn))
     for p in range(pn):
         for s in range(sn):
-            ratio[p, s] = measure[p, s] / min(measure[p, :])
+            ratio[p, s] = measure[p, s] / np.nanmin(measure[p, :])
     warnings.resetwarnings()
 
     def profile(s, t):
