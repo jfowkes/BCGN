@@ -8,9 +8,12 @@ import warnings
 import pickle
 import sys
 import os
+import math
 
 # Dataset name(s)
-basename = sys.argv[1]
+# basename = sys.argv[0] #use this to sort of get path then cut and paste the begning of the name
+#and then write it in basename fct
+basename='/home/constantin/Desktop/Disertation/Codes/BCGN/BCGN-TR-26.06.2019-12:23:25'
 if len(sys.argv) > 2:
     basename2 = sys.argv[2]
 
@@ -19,9 +22,9 @@ def main():
     # Load data(s)
     funcs = pickle.load(open(basename+'.funcs','rb'))
     dimen = pickle.load(open(basename+'.dimen','rb'))
-    measure1 = pickle.load(open(basename+'.measure','rb'))
+    measure1 = pickle.load(open(basename+'.measure','rb')) #3 dim - runs coordinate is missing apparently
     if len(sys.argv) > 2:
-        measure2 = pickle.load(open(basename2+'.measure','rb'))
+        measure2 = pickle.load(open(basename2+'.measure','rb')) 
         measure = np.hstack((measure1,measure2))
     else:
         measure = measure1
@@ -37,9 +40,9 @@ def main():
     # Plot and save performance, budget and grad. eval. profiles
     for imetr, metr in enumerate(metrics):
         fig_title = None
-        performance_profile(measure[:,:,imetr],labels,fig_title,metr,'perf/')
-        budget_profile(measure[:,:,imetr],np.array(dimen),labels,fig_title,metr,'budget/')
-        grad_evals(measure[:,:,imetr],np.array(dimen),funcs,labels,fig_title,metr,'evals/')
+        budget_profile(measure[:,:,imetr,:],np.array(dimen),labels,fig_title,metr,'budget/')
+        performance_profile(measure[:,:,imetr,:],labels,fig_title,metr,'perf/')
+ #       grad_evals(measure[:,:,imetr,:],np.array(dimen),funcs,labels,fig_title,metr,'evals/')
 
 """ Calculate and Plot Performance Profile """
 def performance_profile(measure, solver_labels, fig_title, fig_name, save_dir):
@@ -47,37 +50,52 @@ def performance_profile(measure, solver_labels, fig_title, fig_name, save_dir):
     :param measure: prob x solver array,
      smallest values assumed to be the best
     '''
-
     # Set up colour brewer colours
     plt.rc('axes', prop_cycle=cycler('color', qualitative.Set1_9.mpl_colors))
 
-    pn = measure.shape[0]
-    sn = measure.shape[1]
+    pn = measure.shape[0] #similar to size in matlab -problem
+    sn = measure.shape[1] #solver
+    rn = measure.shape[2]#runs
+     #NAN IS TREATED AS ZERO WHEN MEAN IS APPLIED!!!
+    #THIS CAUSES ALL min(P,:)=nan WHENEVER THERE EXISTS A SOLVER S THAT DOES NOT SOLVE
+    #PROBLEM P
+    #THAT IS WHY ALL SOLVERS BASICALLY SOLVE the SAME NUMBER OF PROBLEMS!!!
+    #NEED TO TURN IT TO 10^16 !!!!!!!
+   # for pii in range(pn):
+    #    for sii in range(sn):
+     #       if (math.isnan(measure[pii,sii])):
+      #          measure[pii,sii]=5*pow(10,15)
 
-    warnings.simplefilter("ignore", RuntimeWarning)
-    ratio = np.zeros((pn, sn))
+    warnings.simplefilter("ignore", RuntimeWarning) #pn is the problem index, 
+    #sn is the solver (no of coordinate/ kappa value -that's why they are put together)
+    ratio = np.zeros((pn*rn, sn))
     for p in range(pn):
-        for s in range(sn):
-            ratio[p, s] = measure[p, s] / min(measure[p, :])
+        for r in range (rn):
+            for s in range(sn):
+                ratio[p*rn+r, s] = measure[p, s, r] / np.nanmin(measure[p, :, :])
     warnings.resetwarnings()
 
-    def profile(s, t):
+    def profile(s, t): # function which computes percentage of problems solved
         prob = 0
-        for p in range(pn):
-            if ratio[p, s] <= t:
+        for pr in range(pn*rn): 
+            if ratio[pr, s] <= t:
                 prob += 1
-        return prob / pn
+        return prob / pn/rn
 
     t = np.linspace(1, 50)
-    prof = np.vectorize(profile)
-    plt.figure(100)
+    prof = np.vectorize(profile) #vectorize the function above to make it work like
+    #Matlab maths rather than concatnation
+    plt.figure(figsize=(10.0, 6))
     plt.clf()
     for s in range(sn):
         y = prof(s, t)
+        if s==2: #if we do the GN
+            y=y*rn #multiply by the number of runs to account for the fact that we only solve once
         plt.plot(t, y, '-', linewidth=2, clip_on=False)
     plt.grid()
+    plt.ylim([0,1])
     plt.xlabel('Performance Ratio')
-    plt.ylabel('% Problems Solved')
+    plt.ylabel('% of Problems Solved')#Number of Problems Solved: Total 32x40=1280
     plt.legend(solver_labels, loc='lower right')
     if fig_title:
         plt.title(fig_title, fontsize=13)
@@ -99,30 +117,35 @@ def budget_profile(measure, dimen, solver_labels, fig_title, fig_name, save_dir)
 
     pn = measure.shape[0]
     sn = measure.shape[1]
-
+    rn = measure.shape[2]#runs
     # scale budget by dimension
-    ratio = np.zeros((pn, sn))
+    ratio = np.zeros((pn*rn, sn))
     for p in range(pn):
-        for s in range(sn):
-            ratio[p, s] = measure[p, s] / dimen[p]
+        for r in range (rn):
+            for s in range(sn):
+                ratio[p*rn+r, s] = measure[p, s, r] / dimen[p]
 
     def profile(s, m):
         prob = 0
-        for p in range(pn):
-            if ratio[p, s] <= m:
+        for pr in range(pn*rn):
+            if ratio[pr, s] <= m:
                 prob += 1
-        return prob / pn
+        return prob / pn/rn
 
     m = np.linspace(0, 50)
     prof = np.vectorize(profile)
-    plt.figure(100)
+    plt.figure(figsize=(10,6))
     plt.clf()
     for s in range(sn):
-        y = prof(s, m)
+        y = prof(s, m) #!!!!!!!!!!!!!!
+        if s==2:
+            y=y*rn #if we deal with full GN, multiply by rn to account fo the fact
+            #that we only solve once
         plt.plot(m, y, '-', linewidth=2, clip_on=False)
     plt.grid()
+    plt.ylim([0,1])
     plt.xlabel('Budget')
-    plt.ylabel('% Problems Solved')
+    plt.ylabel('% of Problems Solved')#Number of Problems Solved: Total 32x40=1280
     plt.legend(solver_labels, loc='lower right')
     if fig_title:
         plt.title(fig_title, fontsize=13)
