@@ -78,7 +78,8 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
             # Assemble block-reduced matrices
             J_S = J(x).dot(Q)
             gradf_S = J_S.T.dot(rx)
-
+            if k == 0 and algorithm.startswith('tr') or algorithm == 'reg':
+                delta = linalg.norm(gradf_S)/10
             p_in += step
 
             # Debug output

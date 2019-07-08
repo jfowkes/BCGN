@@ -13,7 +13,7 @@ import math
 # Dataset name(s)
 # basename = sys.argv[0] #use this to sort of get path then cut and paste the begning of the name
 #and then write it in basename fct
-basename='/home/constantin/Desktop/Disertation/Codes/BCGN/BCGN-TR-26.06.2019-12:23:25'
+basename='/home/constantin/Desktop/Disertation/Codes/BCGN/BCGN-TR-06.07.2019-17:50:27'
 if len(sys.argv) > 2:
     basename2 = sys.argv[2]
 
@@ -123,7 +123,7 @@ def budget_profile(measure, dimen, solver_labels, fig_title, fig_name, save_dir)
     for p in range(pn):
         for r in range (rn):
             for s in range(sn):
-                ratio[p*rn+r, s] = measure[p, s, r] / dimen[p]
+                ratio[p*rn+r, s] = measure[p, s, r] / dimen[p]#/dimen[p]
 
     def profile(s, m):
         prob = 0
@@ -132,7 +132,7 @@ def budget_profile(measure, dimen, solver_labels, fig_title, fig_name, save_dir)
                 prob += 1
         return prob / pn/rn
 
-    m = np.linspace(0, 50)
+    m = np.linspace(0, 50)#**2
     prof = np.vectorize(profile)
     plt.figure(figsize=(10,6))
     plt.clf()

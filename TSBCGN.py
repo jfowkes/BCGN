@@ -10,8 +10,9 @@ import scipy.linalg as linalg
 import math as ma
 import pickle
 import os
+from Optimisation_thompson import update_all_coordinates, Bandit_d_Thompson_sampling,Thompson_sample
 
-def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_name, run_counter,algorithm='tr'):
+def TSBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_name, run_counter,algorithm='tr'):
     n = x0.size
 
     # Adaptive BCGN step size
@@ -31,9 +32,12 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_
     budget = 0
     tau_budget = np.full(4,np.nan)
 
-    # Initialize block sampling function
-    sampling_func(n,p,init=True)
-
+    # Initialize block sampling function---------------------------------------------THOMPSON
+    if kappa==1 and p==2:
+        Thompson_sample(n, init=True)
+    else:
+        sampling_func(n,p,init=True)
+        
     k = 0
     x = x0
     delta = None
@@ -65,7 +69,10 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_
     while (not fig and budget < it_max*n) or (fig and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
         #n is the dimensionality of the problem. it_max is defined in BCGN.py
         # Randomly select blocks
-        S = sampling_func(n,p) #p is how many coordinates are considered
+        if kappa==1 and p==2:
+            S=Thompson_sample(n) #p is how many coordinates are considered
+        else:
+            S = sampling_func(n,p)
 
         # Assemble block-reduced JACOBIAN matrices and COMPUTE GRADIENT IN
         #THE SUBSPACE OF INTEREST--------------------------------------------
@@ -194,6 +201,9 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_
         fx=f(x)
         objfun_value[k]=fx
         budget_saved_k[k]=budget
+        #update thompson sampling info
+        if kappa==1 and p==2:
+            update_all_coordinates(grad[:,k-1]/fx,S,n)
         #endsavedata part2----------
                # function decrease metrics------------------------------------------
         if fig is None: #tau_budget carries the bugdet IFF the problem was solved

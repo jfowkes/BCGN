@@ -1,7 +1,8 @@
 """ Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
 from RBCGN import RBCGN
-from RBCGN_savinginfo import RBCGN_savinginfo
+from GGSWL_BCGN_savinginfo import GGSWL_BCGN_savinginfo
+from GGSWL_BCGN_savinginfo_LINALGBUDGET import GGSWL_BCGN_savinginfo_LINALGBUDGET
 from scipy.sparse import csr_matrix
 import numpy as np
 import warnings
@@ -25,9 +26,9 @@ def main():
     #pycharm
     # Main parameters----------------------------------------------------------
     IT_MAX = 50 # Max iterations (plot=True) / full gradient evaluations (plot=False)
-    NO_INSTANCES = 50# No. random runs
+    NO_INSTANCES = 30# No. random runs
     FTOL = 1e-10
-    ALG = 'reg'
+    ALG = 'tr'
     #-------------------------------------------------------------------------
     # Plotting parameters-----------------------------------------------------
     PLOT = False
@@ -44,10 +45,10 @@ def main():
     from problems.cutest32_zero import funcs, args, dimen, fxopts
 #!!!!!!!!#KEEP JUST THE PROBLEM YOU WANT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    # problems_you_want=(1,4,10,20,22,27,30)
-   # funcs=[funcs[i] for i in problems_you_want]
-   # args=[args[i] for i in problems_you_want]
-   # dimen=[dimen[i] for i in problems_you_want]
-   # fxopts=[fxopts[i] for i in problems_you_want]
+    #funcs=[funcs[i] for i in problems_you_want]
+    #args=[args[i] for i in problems_you_want]
+    #dimen=[dimen[i] for i in problems_you_want]
+    #fxopts=[fxopts[i] for i in problems_you_want]
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     kappas = [1,0.7]  #kappa=1 <=> NONADAPTIVE, FIXED
     #kappa!=1 <=> ADAPTIVE starting from size p, as in the nonadaptive case.
@@ -78,6 +79,9 @@ def main():
 
         # Get test function---------------------------------------------
         r, J, x0 = get_test_problem(func, args[ifunc], ALG)
+      #  if func== 'CHNRSBNE':
+       #     saved_x_k=pickle.load(open('z.CHNRSBNE_final_stuck_location_greedy_GSWLL_99997', 'rb'))
+        #    x0=saved_x_k
         n = x0.size
         fxopt = fxopts[ifunc] #fxopt is the value of f at the global minimum
         #---------------------------------------------------------------
@@ -130,9 +134,9 @@ def main():
 
                     # Run RBCGN
                     if PLOT: # Plotting
-                        Ys[:,:,iseed] = RBCGN_savinginfo(r,J,x0,sampling_func,sampling_func2,fxopt,IT_MAX,FTOL,p,fig,kappa,func,iseed,algorithm=ALG)
+                        Ys[:,:,iseed] = GGSWL_BCGN_savinginfo_LINALGBUDGET(r,J,x0,sampling_func,sampling_func2,fxopt,IT_MAX,FTOL,p,fig,kappa,func,iseed,algorithm=ALG)
                     else: # performance profiles - THIS IS WHERE RBCGN is called
-                        measures[ifunc,ishift+ip,:,iseed] = RBCGN_savinginfo(r,J,x0,sampling_func,sampling_func2,fxopt,IT_MAX,FTOL,p,None,kappa,func,iseed,algorithm=ALG)
+                        measures[ifunc,ishift+ip,:,iseed] = GGSWL_BCGN_savinginfo_LINALGBUDGET(r,J,x0,sampling_func,sampling_func2,fxopt,IT_MAX,FTOL,p,None,kappa,func,iseed,algorithm=ALG)
                         #RBCGN returns nan if not solved or no of coord eval if solved
                 # Plotting
                 if PLOT:

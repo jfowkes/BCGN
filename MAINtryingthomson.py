@@ -1,6 +1,7 @@
-""" Block-Coordinate Gauss-Newton """
+""" Block-Coordinate Gauss-Newton -TRYING THOMPSON"""
 from __future__ import absolute_import, division, unicode_literals, print_function
 from RBCGN import RBCGN
+from TSBCGN import TSBCGN
 from RBCGN_savinginfo import RBCGN_savinginfo
 from scipy.sparse import csr_matrix
 import numpy as np
@@ -25,9 +26,9 @@ def main():
     #pycharm
     # Main parameters----------------------------------------------------------
     IT_MAX = 50 # Max iterations (plot=True) / full gradient evaluations (plot=False)
-    NO_INSTANCES = 50# No. random runs
+    NO_INSTANCES = 5# No. random runs
     FTOL = 1e-10
-    ALG = 'reg'
+    ALG = 'tr'
     #-------------------------------------------------------------------------
     # Plotting parameters-----------------------------------------------------
     PLOT = False
@@ -43,11 +44,11 @@ def main():
     # Test functions----------------------------------------------------------
     from problems.cutest32_zero import funcs, args, dimen, fxopts
 #!!!!!!!!#KEEP JUST THE PROBLEM YOU WANT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   # problems_you_want=(1,4,10,20,22,27,30)
-   # funcs=[funcs[i] for i in problems_you_want]
-   # args=[args[i] for i in problems_you_want]
-   # dimen=[dimen[i] for i in problems_you_want]
-   # fxopts=[fxopts[i] for i in problems_you_want]
+    problems_you_want=(1,4,10,20,22,27,30)
+    funcs=[funcs[i] for i in problems_you_want]
+    args=[args[i] for i in problems_you_want]
+    dimen=[dimen[i] for i in problems_you_want]
+    fxopts=[fxopts[i] for i in problems_you_want]
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     kappas = [1,0.7]  #kappa=1 <=> NONADAPTIVE, FIXED
     #kappa!=1 <=> ADAPTIVE starting from size p, as in the nonadaptive case.
@@ -130,9 +131,9 @@ def main():
 
                     # Run RBCGN
                     if PLOT: # Plotting
-                        Ys[:,:,iseed] = RBCGN_savinginfo(r,J,x0,sampling_func,sampling_func2,fxopt,IT_MAX,FTOL,p,fig,kappa,func,iseed,algorithm=ALG)
+                        Ys[:,:,iseed] = TSBCGN(r,J,x0,sampling_func,fxopt,IT_MAX,FTOL,p,fig,kappa,func,iseed,algorithm=ALG)
                     else: # performance profiles - THIS IS WHERE RBCGN is called
-                        measures[ifunc,ishift+ip,:,iseed] = RBCGN_savinginfo(r,J,x0,sampling_func,sampling_func2,fxopt,IT_MAX,FTOL,p,None,kappa,func,iseed,algorithm=ALG)
+                        measures[ifunc,ishift+ip,:,iseed] = TSBCGN(r,J,x0,sampling_func,fxopt,IT_MAX,FTOL,p,None,kappa,func,iseed,algorithm=ALG)
                         #RBCGN returns nan if not solved or no of coord eval if solved
                 # Plotting
                 if PLOT:

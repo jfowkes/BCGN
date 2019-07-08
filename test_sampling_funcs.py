@@ -3,12 +3,12 @@ from __future__ import absolute_import, division, unicode_literals, print_functi
 import numpy as np
 
 # dimensions
-n = 10
+n = 9
 p = 2
-step = 3
+step = 4
 
 def test_random_sample():
-    from sampling_funcs import random_sample as sample
+    from sampling_funcs import random_sample_save_info as sample
 
     print('Testing random sampling...')
     print(sample(n,p,init=True))
@@ -18,6 +18,15 @@ def test_random_sample():
     print(sample(n,p))
     print(sample(n,p,step=step))
     print(sample(n,p,step=step))
+    print('Testing random sampling...NEW FEATURES')
+    print(sample(7,7))
+    print(sample(7,7,step=7))
+    print(sample(7,2))
+    print(sample(7,2,step=1))
+    print(sample(7,2,step=5))
+    print(sample(7,2,step=7))
+    print(sample(7,6))
+    print(sample(7,6,step=8))
 
 def test_gauss_southwell():
     from sampling_funcs import gauss_southwell as sample
