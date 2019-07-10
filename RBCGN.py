@@ -99,6 +99,10 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
                 J_S = J(x)[:,S]
                 gradf_S = J_S.T.dot(rx)
 
+            # Set initial trust region radius
+            if k == 0 and algorithm.startswith('tr') or algorithm == 'reg':
+               delta = linalg.norm(gradf_S)/10
+
             p_in += step
 
             # Debug output
