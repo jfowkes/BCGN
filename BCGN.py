@@ -102,6 +102,8 @@ def main():
                         Ys[:,:,iseed] = RBCGN(r,J,x0,sampling_func,fxopt,IT_MAX,FTOL,p,fig,kappa,algorithm=ALG)
                     else: # performance profiles
                         measures[ifunc,ishift+ip,:,iseed] = RBCGN(r,J,x0,sampling_func,fxopt,IT_MAX,FTOL,p,None,kappa,algorithm=ALG)
+                        if p == n: # GN: all runs are the same
+                            measures[ifunc,ishift+ip,:,:] = np.tile(measures[ifunc,ishift+ip,:,iseed][:,np.newaxis],NO_INSTANCES)
 
                 # Plotting
                 if PLOT:
@@ -114,7 +116,7 @@ def main():
                     ax3.fill_between(X,np.nanmin(Ys[2,:,:],axis=-1),np.nanmax(Ys[2,:,:],axis=-1),alpha=0.5)
                     warnings.resetwarnings()
                 else:
-                    pickle.dump(np.nanmean(measures, axis=-1), open(basename+'.measure', 'wb'), protocol=-1)
+                    pickle.dump(measures, open(basename+'.measure', 'wb'), protocol=-1)
                     pickle.dump(dimen, open(basename+'.dimen', 'wb'), protocol=-1)
                     pickle.dump(all_labels, open(basename+'.labels', 'wb'), protocol=-1)
 

@@ -34,6 +34,12 @@ def main():
         labels = labels1
     metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
 
+    # Treat each run as a 'separate function'
+    num_runs = measure.shape[-1]
+    measure = np.transpose(np.concatenate(measure,axis=-1),(2,0,1))
+    funcs = np.repeat(funcs,num_runs)
+    dimen = np.repeat(dimen,num_runs)
+
     # Plot and save performance, budget and grad. eval. profiles
     for imetr, metr in enumerate(metrics):
         fig_title = None
