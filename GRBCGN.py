@@ -33,12 +33,12 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
 
         # Randomly select subspace
         if kappa == 1 and p == n: # GN
-            Q = np.eye(n)
+            S = np.eye(n)
         else: # random projection
-            Q = gram_schmidt_randn(n,p)
+            S = gaussian_basis_randn(n, p)
 
         # Assemble block-reduced matrices
-        J_S = J(x).dot(Q)
+        J_S = J(x).dot(S)
         rx = r(x)
         gradf_S = J_S.T.dot(rx)
 
@@ -73,10 +73,10 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
             # print 'Increasing block size to:', p_in+step
 
             # Grow subspace
-            Q = gram_schmidt_grow(Q,step)
+            S = gaussian_basis_grow(S, step)
 
             # Assemble block-reduced matrices
-            J_S = J(x).dot(Q)
+            J_S = J(x).dot(S)
             gradf_S = J_S.T.dot(rx)
 
             p_in += step
@@ -104,7 +104,7 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
         # Update parameter and take step
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
-            x, delta = tr_update(f, x, s_S, Q, Delta_m, delta)
+            x, delta = tr_update(f, x, s_S, S, Delta_m, delta)
         else:
             raise RuntimeError(algorithm + 'unimplemented!')
         k += 1
@@ -130,31 +130,17 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
     else: # plotting
         return plot_data
 
-""" Generate random partial orthonormal basis """
-def gram_schmidt_randn(n,k):
-    U = np.zeros((n,k))
-    v = np.random.randn(n)
-    U[:,0] = v/linalg.norm(v)
-    for i in range(1,k):
-        U[:,i] = np.random.randn(n)
-        for j in range(i):
-            U[:,i] = U[:,i] - np.dot(U[:,i],U[:,j]) / np.dot(U[:,j],U[:,j]) * U[:,j]
-        U[:,i] = U[:,i] / np.linalg.norm(U[:,i])
-    return U
+""" Generate random partial basis """
+def gaussian_basis_randn(n, k):
+    return np.random.randn(n,k)/ma.sqrt(k)
 
-""" Grow partial orthonormal basis """
-def gram_schmidt_grow(U,l):
-    n,k = U.shape
-    U = np.hstack((U,np.zeros((n,l))))
-    for i in range(k,k+l):
-        U[:,i] = np.random.randn(n)
-        for j in range(i):
-            U[:,i] = U[:,i] - (U[:,i].T.dot(U[:,j])) / (U[:,j].T.dot(U[:,j])) * U[:,j]
-        U[:,i] = U[:,i] / np.linalg.norm(U[:,i])
-    return U
+""" Grow partial basis """
+def gaussian_basis_grow(U, l):
+    n, k = U.shape
+    return np.hstack((U*ma.sqrt(k),np.random.randn(n,l)))/ma.sqrt(k+l)
 
 """ Trust Region Update """
-def tr_update(f, x, s_S, Q, Delta_m, delta):
+def tr_update(f, x, s_S, S, Delta_m, delta):
 
     # Trust Region parameters
     ETA1 = 0.1
@@ -165,7 +151,7 @@ def tr_update(f, x, s_S, Q, Delta_m, delta):
     DELTA_MAX = 1e150
 
     # Evaluate sufficient decrease
-    s = Q.dot(s_S)
+    s = S.dot(s_S)
     rho = (f(x) - f(x+s))/Delta_m
 
     # Accept trial point
