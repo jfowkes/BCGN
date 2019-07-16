@@ -52,7 +52,7 @@ and used as a module in some other package.
 
 # TODO: speedup powell singular, kowalik, brown almost, gaussian, brown and dennis, penalty II, biggs, rosex, ext pow sing, watson
 #       reduced gradient computation
-
+from __future__ import absolute_import, division, unicode_literals, print_function
 from numpy import array, dot, zeros, ones, arange, where, indices, exp, log, abs, sin, cos, arctan, pi, sqrt, sign, diagflat, triu
 from numpy.lib.polynomial import poly1d
 from scipy.special import chebyt
@@ -215,7 +215,7 @@ class Rosenbrock(MGH):
         self.xh=array([  0.5, 100.0])
 
         if self.n!=2 or self.m!=2:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         self.fi[0]=10.0*(x[1]-x[0]**2)
@@ -247,7 +247,7 @@ class FreudensteinAndRoth(MGH):
         self.xh=array([20.0,  -0.9])
 
         if self.n!=2 or self.m!=2:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         self.fi[0]=-13.0+x[0]+((5.0-x[1])*x[1]-2.0)*x[1]
@@ -278,7 +278,7 @@ class PowellBadlyScaled(MGH):
         self.xh=array([1.0, 9.0])
 
         if self.n!=2 or self.m!=2:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         self.fi[0]=10000*x[0]*x[1]-1.0
@@ -308,7 +308,7 @@ class BrownBadlyScaled(MGH):
         self.xh=array([1e6, 100.0])
 
         if self.n!=2 or self.m!=3:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         self.fi[0]=x[0]-1e6
@@ -342,7 +342,7 @@ class Beale(MGH):
         self.xh=array([10.0, 100.0])
 
         if self.n!=2 or self.m!=3:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         self.fi[0]=1.5-x[0]*(1.0-x[1])
@@ -376,7 +376,7 @@ class JennrichAndSampson(MGH):
         self.xh=array([10.0, 20.0])
 
         if self.n!=2 or self.m<self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         for i in range(0, self.m):
@@ -404,7 +404,7 @@ class HelicalValley(MGH):
         self.xh=array([   0.8,  1.0,  1.0])
 
         if self.n!=3 or self.m!=3:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         if x[0]>0.0:
@@ -449,7 +449,7 @@ class Bard(MGH):
         self.xh=array([50.0, 100.0, 50.0])
 
         if self.n!=3 or self.m!=15:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         for i in range(0, self.m):
@@ -489,7 +489,7 @@ class Gaussian(MGH):
         self.xh=array([4.2,   2.0,  0.1])
 
         if self.n!=3 or self.m!=15:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         for i in range(0, self.m):
@@ -525,7 +525,7 @@ class Meyer(MGH):
         self.xh=array([2.0,   3e5, 3e4])
 
         if self.n!=3 or self.m!=16:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         for i in range(0, self.m):
@@ -567,7 +567,7 @@ class GulfResearchAndDevelopement(MGH):
         self.xh=array([10.0, 10.0, 10.0])
 
         if self.n!=3 or self.m>100 or self.m<self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         #if x[0] == 0.0:
@@ -608,7 +608,7 @@ class Box3D(MGH):
         self.xh=array([2.0, 9.5, 20.0])
 
         if self.n!=3 or self.m<self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         for i in range(0, self.m):
@@ -639,7 +639,7 @@ class PowellSingular(MGH):
         self.xh=array([100.0,  20.0,  1.0, 50.0])
 
         if self.n!=4 or self.m!=4:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         self.fi[0]=x[0]+10*x[1]
@@ -685,7 +685,7 @@ class Wood(MGH):
         self.xh=array([   0.0,   10.0,  100.0,  100.0])
 
         if self.n!=4 or self.m!=6:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         self.fi[0]=10.0*(x[1]-x[0]**2)
@@ -749,7 +749,7 @@ class KowalikAndOsborne(MGH):
         self.xh=array([10.0, 12.0, 13.0, 12.0])
 
         if self.n!=4 or self.m!=11:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         for i in range(0, self.m):
@@ -785,7 +785,7 @@ class BrownAndDennis(MGH):
         self.xh=array([100.0, 15.0,    0.0,   0.2])
 
         if self.n!=4 or self.m<self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         for i in range(0, self.m):
@@ -832,7 +832,7 @@ class Osborne1(MGH):
         self.xh=array([50.0, 1.9,  -0.1, 10.0, 10.0])
 
         if self.n!=5 or self.m!=33:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         for i in range(0, self.m):
@@ -874,7 +874,7 @@ class BiggsEXP6(MGH):
         self.xh=array([2.0, 8.0, 1.0, 7.0, 5.0, 5.0])
 
         if self.n!=6 or self.m<self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         for i in range(0, self.m):
@@ -927,7 +927,7 @@ class Osborne2(MGH):
         self.xh=array([150.0, 100.0, 100.0, 100.0, 100.0, 500.0, 500.0, 500.0, 100.0, 10.00, 10.0])
 
         if self.n!=11 or self.m!=65:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         ti=arange(0.0, self.m)/10.0
@@ -1006,7 +1006,7 @@ class Watson(MGH):
     def __init__(self, n=6, m=31):
         MGH.__init__(self, n, m)
         if self.n<2 or self.n>31 or self.m!=31:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=zeros(self.n)
 
@@ -1070,7 +1070,7 @@ class ExtendedRosenbrock(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.n<2 or self.m!=self.n or (self.n % 2)!=0:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=ones(self.n)
         self.initial[0:self.n:2]=-1.2
@@ -1107,7 +1107,7 @@ class ExtendedPowellSingular(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.n<4 or self.m!=self.n or (self.n % 4)!=0:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=ones(self.n)
         self.initial[0:self.n:4]=3.0
@@ -1169,7 +1169,7 @@ class PenaltyI(MGH):
             m=n+1
         MGH.__init__(self, n, m)
         if self.m!=(self.n+1):
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=arange(1.0, self.n+1)
 
@@ -1200,7 +1200,7 @@ class PenaltyII(MGH):
             m=2*n
         MGH.__init__(self, n, m)
         if self.m!=(2*self.n):
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=ones(self.n)*0.5
 
@@ -1253,7 +1253,7 @@ class VariablyDimensioned(MGH):
             m=n+2
         MGH.__init__(self, n, m)
         if self.m!=(self.n+2):
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=1.0-1.0*arange(1,self.n+1)/self.n
 
@@ -1291,7 +1291,7 @@ class Trigonometric(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m!=self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=1.0*ones(self.n)/self.n
 
@@ -1322,7 +1322,7 @@ class BrownAlmostLinear(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m!=self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=ones(self.n)*0.5
 
@@ -1365,7 +1365,7 @@ class DiscreteBoundaryValue(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m!=self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=arange(1, self.n+1)/(self.n+1.0)*(arange(1, self.n+1)/(self.n+1.0)-1.0)
 
@@ -1405,7 +1405,7 @@ class DiscreteIntegralEquation(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m!=self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=arange(1, self.n+1)/(self.n+1.0)*(arange(1, self.n+1)/(self.n+1.0)-1.0)
 
@@ -1451,7 +1451,7 @@ class BroydenTridiagonal(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m!=self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=ones(self.n)*(-1.0)
 
@@ -1486,7 +1486,7 @@ class BroydenBanded(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m!=self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=ones(self.n)*(-1.0)
 
@@ -1534,7 +1534,7 @@ class LinearFullRank(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m<self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=ones(self.n)
 
@@ -1570,7 +1570,7 @@ class LinearRank1(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m<self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=ones(self.n)
 
@@ -1606,7 +1606,7 @@ class LinearRank1ZeroColumnsAndRows(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m<self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=ones(self.n)
 
@@ -1644,7 +1644,7 @@ class Chebyquad(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m<self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         # chebyt objects are not picklable, poly1d are
         self.T=[]
@@ -1697,7 +1697,7 @@ class Quadratic(MGH):
             m=n
         MGH.__init__(self, n, m)
         if self.m!=self.n:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
         self.initial=ones(self.n)
         self.initial[0]=2.0
@@ -1733,7 +1733,7 @@ class Dixon(MGH):
         self.xh=5.0*ones(10)
 
         if self.n!=10 or self.m!=11:
-            raise Exception, DbgMsg("MGH", "Bad n or m.")
+            raise Exception(DbgMsg("MGH", "Bad n or m."))
 
     def func(self, x):
         self.fi[0]=1-x[0]
