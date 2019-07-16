@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, unicode_literals, print_functi
 from trs.trs_exact import trs, tr_update
 from trs.trs_approx import trs_approx, trs_approx_precon
 from trs.reg import reg, reg_update
+from trs.reg_approx import reg_approx
 from trs.line_search import line_search
 from scipy.sparse import csr_matrix
 import numpy as np
@@ -53,7 +54,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             gradf_S = J_S.T.dot(rx)
 
         # Set initial trust region radius
-        if k == 0 and algorithm.startswith('tr') or algorithm == 'reg':
+        if k == 0 and algorithm.startswith('tr') or algorithm.startswith('reg'):
             delta = linalg.norm(gradf_S)/10
             if delta == 0:
                 delta = 1
@@ -70,6 +71,8 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             s_S = trs_approx_precon(J_S, J_ST, gradf_S, delta)
         elif algorithm == 'reg':
             s_S, delta = reg(J_S, gradf_S, delta)
+        elif algorithm == 'reg_approx':
+            s_S = reg_approx(J_S, rx, delta)
         else:
             s_S, delta = line_search(f, x, S, J_S, gradf_S)
 
@@ -100,7 +103,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
                 gradf_S = J_S.T.dot(rx)
 
             # Set initial trust region radius
-            if k == 0 and algorithm.startswith('tr') or algorithm == 'reg':
+            if k == 0 and algorithm.startswith('tr') or algorithm.startswith('reg'):
                delta = linalg.norm(gradf_S)/10
 
             p_in += step
@@ -117,6 +120,8 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
                 s_S = trs_approx_precon(J_S, J_ST, gradf_S, delta)
             elif algorithm == 'reg':
                 s_S, delta = reg(J_S, gradf_S, delta)
+            elif algorithm == 'reg_approx':
+                s_S = reg_approx(J_S, rx, delta)
             else:
                 s_S, delta = line_search(f, x, S, J_S, gradf_S)
 
@@ -134,7 +139,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
             x, delta = tr_update(f, x, s_S, S, gradf_S, Delta_m, delta)
-        elif algorithm == 'reg':
+        elif algorithm.startswith('reg'):
             x, delta = reg_update(f, x, s_S, S, Delta_m, delta) # same as tr_update with grow/shrink swapped
         else:
             s = np.zeros(n)
@@ -169,7 +174,7 @@ def monitor(k, r, x, f, delta, algorithm, gradf, gradf_S=None):
     print('++++ Iteration', k, '++++')
     if algorithm.startswith('tr'):
         print('delta: %.2e' % delta)
-    elif algorithm == 'reg':
+    elif algorithm.startswith('reg'):
         print('sigma: %.2e' % delta)
     elif delta is not None:
         print('alpha: %.2e' % delta)

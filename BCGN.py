@@ -150,7 +150,7 @@ def get_test_problem(name, sifParams, algorithm):
     if name.isupper(): # CUTEst problem
         prob = pycutest.import_problem(name,sifParams=sifParams)
         def r(x): return prob.cons(x)
-        if 'tr_approx' in algorithm: # sparse Jacobian
+        if 'approx' in algorithm: # sparse Jacobian
             def J(x): return prob.scons(x,gradient=True)[1].tocsr()
         else: # dense Jacobian
             def J(x): return prob.cons(x,gradient=True)[1]
@@ -160,7 +160,7 @@ def get_test_problem(name, sifParams, algorithm):
         mod = __import__('MGH', fromlist=[name])
         prob = getattr(mod, name)()
         r = prob.r
-        if 'tr_approx' in algorithm: # sparse Jacobian
+        if 'approx' in algorithm: # sparse Jacobian
             def J(x): return csr_matrix(prob.jacobian(x))
         else: # dense Jacobian
             J = prob.jacobian
