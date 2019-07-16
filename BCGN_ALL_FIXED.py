@@ -1,7 +1,10 @@
 """ Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
+from RBCGN_DFO_Update import RBCGN_DFO_Update
+from RBCGN_Zhen_scaling_drop_and_add import RBCGN_Zhen_scaling_drop_and_add
 from RBCGN import RBCGN
-from RBCGN_savinginfo import RBCGN_savinginfo
+from RBCGN_scaling_TR import RBCGN_scaling_TR
+from RBCGN_variable_rho import RBCGN_variable_rho
 from scipy.sparse import csr_matrix
 import numpy as np
 import warnings
@@ -130,9 +133,9 @@ def main():
 
                     # Run RBCGN
                     if PLOT: # Plotting
-                        Ys[:,:,iseed] = RBCGN_savinginfo(r,J,x0,sampling_func,sampling_func2,fxopt,IT_MAX,FTOL,p,fig,kappa,func,iseed,algorithm=ALG)
+                        Ys[:,:,iseed] = RBCGN_scaling_TR(r,J,x0,sampling_func,fxopt,IT_MAX,FTOL,p,fig,kappa,func,iseed,algorithm=ALG)
                     else: # performance profiles - THIS IS WHERE RBCGN is called
-                        measures[ifunc,ishift+ip,:,iseed] = RBCGN_savinginfo(r,J,x0,sampling_func,sampling_func2,fxopt,IT_MAX,FTOL,p,None,kappa,func,iseed,algorithm=ALG)
+                        measures[ifunc,ishift+ip,:,iseed] = RBCGN_scaling_TR(r,J,x0,sampling_func,fxopt,IT_MAX,FTOL,p,None,kappa,func,iseed,algorithm=ALG)
                         #RBCGN returns nan if not solved or no of coord eval if solved
                 # Plotting
                 if PLOT:

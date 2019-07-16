@@ -1,6 +1,6 @@
 """ Random Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
-from trs.trs_exact import trs, tr_update
+from trs.trs_exact_prototype import trs, tr_update
 from trs.trs_approx import trs_approx, trs_approx_precon
 from trs.reg import reg, reg_update
 from trs.line_search import line_search
@@ -86,6 +86,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_
             delta = linalg.norm(gradf_S)/10
             if delta == 0:
                 delta = 1
+            Delta_max=8*delta
         #--------------------------------------------------------------------
         
         # Debug output
@@ -134,6 +135,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_
             #------------------------------------------------------------------
             if k == 0 and algorithm.startswith('tr') or algorithm == 'reg':
                 delta = linalg.norm(gradf_S)/10
+                Delta_max=8*delta
             p_in += step #account for considering extra coordinates
             
             # Debug output
@@ -162,11 +164,11 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_
        #=======================================================================   '''      
         budget += p_in #record change to the budget
         #print('Iteration:', k, 'max block size:', p_in)
-
+        delta_k[k]=delta
         # Update parameter and take step---------------------------------------
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
-            x, delta = tr_update(f, x, s_S, S, gradf_S, Delta_m, delta)
+            x, delta = tr_update(f, x, s_S, S, gradf_S, Delta_m, delta, Delta_max)
         elif algorithm == 'reg':
             x, delta = reg_update(f, x, s_S, S, Delta_m, delta) # same as tr_update with grow/shrink swapped
         else:
@@ -185,7 +187,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_
         objfunction_decrease[k]=+f(x)-np.linalg.norm(rx, ord=2)
         #note that rx was set to r(x) before x was updated!
         J_saved_k.append(J(x))
-        delta_k[k]=delta
+       
         steplength_k[k]=np.linalg.norm(x-x_k[:,k],ord=2)
         #end save data--------part 1------- 
         k += 1

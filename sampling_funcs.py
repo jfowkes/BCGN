@@ -256,4 +256,73 @@ def random_sample_save_info(n,p,init=False,step=0,SS=-1):
     return S, budget_increment
 
         
+def random_sample_drop_and_add(n,p,measure,already_dropped,already_dropped_measure,init=False,drop=False):#,SS=-1):
+    """
+    Sample coordinate block of size p at random from n
+    drops and adds coordinates when step is not taken
+    :param n: problem dimension
+    :param p: block size
+    :param step: adaptively increase block size
+    :returns: array of sampled coordinate indices
+    measure is gradf_s/f
+    """
+    critical_measure_value=1
+    global S
+   # global already_dropped, alredy_dropped_measure
+   # if type(SS)!=type(None):  #    if type(SS)!=int:     #       S=SS
+
+    if init: # no initialization required
+        return
+
+    if p == n: # return full block
+        if drop==False:
+            budget_increment=n
+            return np.arange(n), budget_increment, np.array([]), np.array([])
+        else:
+            return np.arange(n), 0, np.array([]), np.array([])
+    #else
+    if drop==True: # drop all coordinates that are "bad" and add
+        #using current S check which coordinates have a low value of measure
+        current_drop=np.array([])
+        for i,coord_i in enumerate(S):
+            if measure[i]<critical_measure_value:
+                if (coord_i in already_dropped)==False: #if we have not stored it already
+                    already_dropped_measure=np.append(already_dropped_measure,measure[i])
+                    already_dropped=np.append(already_dropped,coord_i)
+                current_drop=np.append(current_drop,i)
+        good_coordinates_indices=np.setdiff1d(np.arange(len(S)),current_drop)
+        S=S[good_coordinates_indices]#throw away the "bad" coordinates
+        rem_ind = np.setdiff1d(np.arange(n),S)#take out coords alrdy in S
+        rem_inds = np.setdiff1d(rem_ind,already_dropped)#and the ones we alrdy had
         
+        if len(rem_inds)>=p-len(S):#if there are enough untried coords to fill our block
+            budget_increment=p-len(S)
+            SA = np.random.choice(rem_inds,size=p-len(S),replace=False)#choose at random
+            S = np.hstack((S,SA))
+        elif len(rem_inds)==0:#if there are no coors we have nt tried
+            sorted_arguments=np.argsort(already_dropped_measure)
+            coords_to_choose_from=already_dropped[sorted_arguments]
+            coords_to_choose_from=coords_to_choose_from[::-1]#reverse order to get higher values 1st
+            SA=coords_to_choose_from[0:p-len(S)]
+            S = np.hstack((S,SA))
+            budget_increment=0
+        else:#if we have some untried indices but not enough to fill the whole block
+            budget_increment=len(rem_inds)
+            S = np.hstack((S,rem_inds))
+            sorted_arguments=np.argsort(already_dropped_measure)
+            coords_to_choose_from=already_dropped[sorted_arguments]
+            coords_to_choose_from=coords_to_choose_from[::-1]#reverse order to get higher values 1st
+            SA2=coords_to_choose_from[0:p-len(S)]
+            S = np.hstack((S,SA2))
+        S=S.astype(int)
+        return S, budget_increment, already_dropped, already_dropped_measure
+    else: # if drop ==False
+        S = np.random.choice(np.arange(n),size=p,replace=False)
+        budget_increment=p
+        S=S.astype(int)
+        return S, budget_increment, np.array([]), np.array([])
+        #S is a vector of random coordinate indices
+
+        
+        
+       

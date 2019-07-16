@@ -169,7 +169,7 @@ def TSBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function
        #=======================================================================   '''      
         budget += p_in #record change to the budget
         #print('Iteration:', k, 'max block size:', p_in)
-
+        delta_k[k]=delta
         # Update parameter and take step---------------------------------------
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
@@ -192,7 +192,7 @@ def TSBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function
         objfunction_decrease[k]=+f(x)-np.linalg.norm(rx, ord=2)
         #note that rx was set to r(x) before x was updated!
         J_saved_k.append(J(x))
-        delta_k[k]=delta
+        
         steplength_k[k]=np.linalg.norm(x-x_k[:,k],ord=2)
         #end save data--------part 1------- 
         k += 1

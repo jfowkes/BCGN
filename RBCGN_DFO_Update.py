@@ -1,18 +1,17 @@
 """ Random Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
-from trs.trs_exact import trs, tr_update
+from trs.trs_exact_prototype import trs, tr_update
 from trs.trs_approx import trs_approx, trs_approx_precon
 from trs.reg import reg, reg_update
 from trs.line_search import line_search
 from scipy.sparse import csr_matrix
-from sampling_funcs import greedy_gauss_southwell, adaptive_greedy_gauss_southwell
 import numpy as np
 import scipy.linalg as linalg
 import math as ma
 import pickle
 import os
 
-def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_name, run_counter,algorithm='tr'):
+def RBCGN_DFO_Update(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, function_name, run_counter,algorithm='tr'):
     n = x0.size
 
     # Adaptive BCGN step size
@@ -33,10 +32,7 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
     tau_budget = np.full(4,np.nan)
 
     # Initialize block sampling function
-    if kappa==1 and p==2:
-        S=adaptive_greedy_gauss_southwell(n,p,p,p,0,init=True)#use p as a dummy grad for init it does not matter
-    else:
-        S=sampling_func(n,p,init=True)
+    sampling_func(n,p,init=True)
 
     k = 0
     x = x0
@@ -46,15 +42,7 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
         max_number_of_gradients=round(n/p)*it_max
     else:
         max_number_of_gradients=round(n/2)*it_max
-    #max number of gradients initially defined for saving data ONLY
-    #but now is also used used as a termination condition because the budget was
-    #amended to not increment when we are at full block size and we just solve TR again
-    #sometimes in this case(at full GN-can start from an block size) t
-    #he algo just tries but never takes a step
-    #for infinite number of iter so we limit it as the budget is not incremented in this case anymore
-    #this is now what the budget limit would have been for a non-adaptive scheme
-    #when taxing the method at p per iteration even if the blocksize is already max
-    max_number_of_gradients=round(max_number_of_gradients*1.5)
+            
     x_k=np.full((n,max_number_of_gradients+1),np.nan)  
     grad=np.full((n,max_number_of_gradients),np.nan) 
     which_blocks_k=[]#np.full((n,max_number_of_gradients),np.nan) 
@@ -71,23 +59,14 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
     
     budget_saved_k[0]=0
     x_k[:,0]=x0 
-    objfun_value[0]=f(x0); zeta=0.97
+    objfun_value[0]=f(x0)   
     #end initialization of saved metrics
     
-    while (not fig and budget < it_max*n and k<max_number_of_gradients) or (fig and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
+    while (not fig and budget < it_max*n) or (fig and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
         #n is the dimensionality of the problem. it_max is defined in BCGN.py
         # Randomly select blocks
-        #p is how many coordinates are considered            
-        grad_x=gradf(x)
-        if steplength_k[k-1]==0:
-            S, p_in_budget = sampling_func(n,p,step=p)
-        else:
-             if kappa==1 and p==2: #if we are on the Thompson Solver
-                S,zeta = adaptive_greedy_gauss_southwell(n,p,grad_x,steplength_k[k-1],zeta)
-                p_in_budget = len(S)
-             else:
-                S, p_in_budget = sampling_func(n,p)
-        #S= sampling_func(n,p,S,save_info_resampling_flag)
+        S = sampling_func(n,p) #p is how many coordinates are considered
+
         # Assemble block-reduced JACOBIAN matrices and COMPUTE GRADIENT IN
         #THE SUBSPACE OF INTEREST--------------------------------------------
         if 'tr_approx' in algorithm: # sparse
@@ -140,7 +119,7 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
             # Increase block size
             step = min(STEP,n-p_in)
             #print('Increasing block size to:',p_in+step)
-            S = sampling_func_adaptive(n,step,step=True) #add "step" coordinates to S
+            S = sampling_func(n,step,step=True) #add "step" coordinates to S
 
             #2 Assemble block-reduced JACOBIAN matrices and COMPUTE GRADIENT IN
             #THE SUBSPACE OF INTEREST--------------------------------------------
@@ -155,11 +134,8 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
             #------------------------------------------------------------------
             if k == 0 and algorithm.startswith('tr') or algorithm == 'reg':
                 delta = linalg.norm(gradf_S)/10
-            #put this here because the adaptive was starting with 2D-like TR
-            #while full GN was not this limited the adaptive progress
-            
             p_in += step #account for considering extra coordinates
-            p_in_budget +=step
+            
             # Debug output
             #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
 
@@ -184,13 +160,14 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
             #stopping_rule = linalg.norm(gradf_S) > kappa*delta
             #-----------------------------------------------------------------
        #=======================================================================   '''      
-        budget += p_in_budget #record change to the budget
+        budget += p_in #record change to the budget
         #print('Iteration:', k, 'max block size:', p_in)
-        delta_k[k]=delta #!!!!!!!!!!!!!!!!!
+        delta_k[k]=delta
         # Update parameter and take step---------------------------------------
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
+        Delta_max=n/len(S)*np.linalg.norm(gradf_S,ord=2)
         if algorithm.startswith('tr'):
-            x, delta = tr_update(f, x, s_S, S, gradf_S, Delta_m, delta)
+            x, delta = tr_update(f, x, s_S, S, gradf_S, Delta_m, delta, Delta_max)
         elif algorithm == 'reg':
             x, delta = reg_update(f, x, s_S, S, Delta_m, delta) # same as tr_update with grow/shrink swapped
         else:
@@ -199,7 +176,7 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
             x = x + delta*s #delta is now the steplength as overwritten by tr_update
             #it appears that delta is also the next-step TR radius
         #---------------------------------------------------------------------
- #save data------part 1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]
+        #save data------part 1-------------   
         JJ=J(x)
         grad[:,k]=JJ.T.dot(rx)
         which_blocks_k.append(S)
@@ -209,6 +186,7 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
         objfunction_decrease[k]=+f(x)-np.linalg.norm(rx, ord=2)
         #note that rx was set to r(x) before x was updated!
         J_saved_k.append(J(x))
+       
         steplength_k[k]=np.linalg.norm(x-x_k[:,k],ord=2)
         #end save data--------part 1------- 
         k += 1
@@ -217,8 +195,8 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
         fx=f(x)
         objfun_value[k]=fx
         budget_saved_k[k]=budget
-#endsavedata part2----------]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]
-        # function decrease metrics------------------------------------------
+        #endsavedata part2----------
+               # function decrease metrics------------------------------------------
         if fig is None: #tau_budget carries the bugdet IFF the problem was solved
             for itau, tau in enumerate([1e-1,1e-3,1e-5,1e-7]):
                 if np.isnan(tau_budget[itau]) and f(x) <= tau*f(x0): # FUNCTION DECREASE CONDTION AS OPPOSED TO GRADIENT ~OLD
@@ -228,7 +206,7 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
                     tau_budget[itau] = budget
             if np.all(np.isfinite(tau_budget)): # Stop if all function decrease metrics satisfied
                 #pickle the saved metrics--------------------------------------------
-               #  pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
+                 pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
                  return tau_budget
                  
         else: # plotting
@@ -242,11 +220,11 @@ def GGSWL_BCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt
     #monitor(k, r, x, f, delta, algorithm, gradf)
     #end piclkling saved metrixs
     # Return function decrease metrics (some unsatisfied)
-   # pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
+    pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
         
     if fig is None:
          #pickle the saved metrics--------------------------------------------
-     #   pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
+        pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
         return tau_budget 
     else: # plotting
         return plot_data

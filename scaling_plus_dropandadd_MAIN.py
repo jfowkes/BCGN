@@ -1,7 +1,8 @@
 """ Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
 from RBCGN import RBCGN
-from RBCGN_savinginfo import RBCGN_savinginfo
+from RBCGN_Zhen_scaling_drop_and_add import RBCGN_Zhen_scaling_drop_and_add
+from RBCGN_drop_and_add import RBCGN_drop_and_add
 from scipy.sparse import csr_matrix
 import numpy as np
 import warnings
@@ -35,8 +36,8 @@ def main():
     #--------------------------------------------------------------------------
 
     # Sampling function---------------------------------------------------------
+    from sampling_funcs import random_sample_drop_and_add as sampling_func_drop
     from sampling_funcs import random_sample as sampling_func
-    from sampling_funcs import random_sample_save_info as sampling_func2
     # contains multiple sampling strategies - see file sampling_func.py
     #-------------------------------------------------------------------------
     
@@ -130,9 +131,9 @@ def main():
 
                     # Run RBCGN
                     if PLOT: # Plotting
-                        Ys[:,:,iseed] = RBCGN_savinginfo(r,J,x0,sampling_func,sampling_func2,fxopt,IT_MAX,FTOL,p,fig,kappa,func,iseed,algorithm=ALG)
+                        Ys[:,:,iseed] = RBCGN_Zhen_scaling_drop_and_add(r,J,x0,sampling_func_drop,sampling_func,fxopt,IT_MAX,FTOL,p,fig,kappa,func,iseed,algorithm=ALG)
                     else: # performance profiles - THIS IS WHERE RBCGN is called
-                        measures[ifunc,ishift+ip,:,iseed] = RBCGN_savinginfo(r,J,x0,sampling_func,sampling_func2,fxopt,IT_MAX,FTOL,p,None,kappa,func,iseed,algorithm=ALG)
+                        measures[ifunc,ishift+ip,:,iseed] = RBCGN_Zhen_scaling_drop_and_add(r,J,x0,sampling_func_drop,sampling_func,fxopt,IT_MAX,FTOL,p,None,kappa,func,iseed,algorithm=ALG)
                         #RBCGN returns nan if not solved or no of coord eval if solved
                 # Plotting
                 if PLOT:

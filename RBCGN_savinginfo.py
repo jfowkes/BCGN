@@ -1,6 +1,6 @@
 """ Random Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
-from trs.trs_exact import trs, tr_update
+from trs.trs_exact_prototype import trs, tr_update
 from trs.trs_approx import trs_approx, trs_approx_precon
 from trs.reg import reg, reg_update
 from trs.line_search import line_search
@@ -99,6 +99,7 @@ def RBCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt, it_
             delta = linalg.norm(gradf_S)/10
             if delta == 0:
                 delta = 1
+            Delta_max=8*delta
         #--------------------------------------------------------------------
         
         # Debug output
@@ -147,6 +148,7 @@ def RBCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt, it_
             #------------------------------------------------------------------
             if k == 0 and algorithm.startswith('tr') or algorithm == 'reg':
                 delta = linalg.norm(gradf_S)/10
+                Delta_max=8*delta
                 
             p_in += step 
             #account for considering extra coordinates
@@ -177,18 +179,17 @@ def RBCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt, it_
        #=======================================================================   '''      
         budget += p_in_budget #record change to the budget
         #print('Iteration:', k, 'max block size:', p_in)
-
+        delta_k[k]=delta#!!!!!!!!!!
         # Update parameter and take step---------------------------------------
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
-            x, delta = tr_update(f, x, s_S, S, gradf_S, Delta_m, delta)
+            x, delta = tr_update(f, x, s_S, S, gradf_S, Delta_m, delta, Delta_max)#, Delta_max)
         elif algorithm == 'reg':
             x, delta = reg_update(f, x, s_S, S, Delta_m, delta) # same as tr_update with grow/shrink swapped
         else:
             s = np.zeros(n)
             s[S] = s_S
-            x = x + delta*s #delta is now the steplength as overwritten by tr_update
-            #it appears that delta is also the next-step TR radius
+            x = x + delta*s 
         #---------------------------------------------------------------------
  #save data------part 1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]
         JJ=J(x)
@@ -200,7 +201,7 @@ def RBCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt, it_
         objfunction_decrease[k]=+f(x)-np.linalg.norm(rx, ord=2)
         #note that rx was set to r(x) before x was updated!
         J_saved_k.append(J(x))
-        delta_k[k]=delta
+        
         steplength_k[k]=np.linalg.norm(x-x_k[:,k],ord=2)
         #end save data--------part 1------- 
         k += 1
@@ -220,7 +221,7 @@ def RBCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt, it_
                     tau_budget[itau] = budget
             if np.all(np.isfinite(tau_budget)): # Stop if all function decrease metrics satisfied
                 #pickle the saved metrics--------------------------------------------
-               #  pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
+                 pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
                  return tau_budget
                  
         else: # plotting
@@ -234,11 +235,11 @@ def RBCGN_savinginfo(r, J, x0, sampling_func_adaptive, sampling_func, fxopt, it_
     #monitor(k, r, x, f, delta, algorithm, gradf)
     #end piclkling saved metrixs
     # Return function decrease metrics (some unsatisfied)
-   # pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
+    pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
         
     if fig is None:
          #pickle the saved metrics--------------------------------------------
-       # pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
+        pickle_everything(function_name,run_counter,p,n,kappa,x_k,grad,which_blocks_k,block_size_k,norm_grad,norm_grad_s,objfunction_decrease,J_saved_k,objfun_value,delta_k,steplength_k,budget_saved_k)
         return tau_budget 
     else: # plotting
         return plot_data
