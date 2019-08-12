@@ -48,6 +48,44 @@ def tr_update(f, x, s_S, S, gradf_S, Delta_m, delta, update='standard'):
 
     return x, delta
 
+""" Trust Region Update (Sophisticated) """
+def tr_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta):
+
+    # Trust Region parameters
+    ETA1 = 0.1
+    ETA2 = 0.75
+    GAMMA3 = 0.1
+    GAMMA1 = 0.5
+    GAMMA2 = 2.
+    DELTA_MIN = 1e-150
+    DELTA_MAX = 1e150
+
+    # Evaluate sufficient decrease
+    s = np.zeros(len(x))
+    s[S] = s_S
+    fx = f(x)
+    fxs = f(x+s)
+    gs = np.dot(gradf_S,s_S)
+    sHs = 0.5*np.dot(Js_S,Js_S)
+    rho = (fx - fxs)/(-gs-0.5*sHs)
+
+    # Accept trial point
+    if rho >= ETA1:
+        x = x + s
+
+    # Update trust region radius
+    if rho < 0: # very unsuccessful
+        alpha_bad = (1-ETA1)*gs/((1-ETA1)*(fx+gs)+ETA1*(fx+gs+sHs)-fxs)
+        delta *= max(GAMMA3,alpha_bad)
+    elif rho < ETA1: # unsuccessful
+        delta *= GAMMA1
+        delta = max(delta,DELTA_MIN)
+    elif rho >= ETA2: # very successful
+        delta *= GAMMA2
+        delta = min(delta,DELTA_MAX)
+
+    return x, delta
+
 """ Trust Region Subproblem """
 def trs(J_S, gradf_S, delta):
     p = J_S.shape[1]
