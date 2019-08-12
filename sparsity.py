@@ -22,11 +22,11 @@ args = [{'N': 100}, {'N': 100}, {'NDP': 102}, {'P': 10}, {'N': 100}, {'N': 100},
 for ifunc, func in enumerate(funcs):
 
     # Get test function
-    r, J, x0 = get_test_problem(func, args[ifunc], 'trs')
+    r, J, x0 = get_test_problem(func, args[ifunc],'trs')
 
     # Plot sparsity
     plt.figure(ifunc)
-    plt.spy(np.dot(J(x0).T,J(x0)))
+    plt.spy(np.dot(J(x0).T,J(x0)),markersize=0.5)
     plt.ylabel('m')
     plt.xlabel('m')
     plt.title('Hessian Sparsity: '+func)
