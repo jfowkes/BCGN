@@ -8,7 +8,7 @@ import math as ma
 def reg_update(f, x, s_S, S, Delta_m, sigma):
 
     # Trust Region parameters
-    ETA1 = 0.25
+    ETA1 = 0.1
     ETA2 = 0.75
     GAMMA1 = 2.
     GAMMA2 = 0.5
@@ -18,19 +18,57 @@ def reg_update(f, x, s_S, S, Delta_m, sigma):
     # Evaluate sufficient decrease
     s = np.zeros(len(x))
     s[S] = s_S
-    rho = (f(x) - f(x+s))/Delta_m
+    rho = (f(x) - f(x+s))/(Delta_m - 0.5*sigma*np.dot(s_S,s_S))
 
     # Accept trial point
     if rho >= ETA1:
         x = x + s
 
-    # Update trust region radius
+    # Update regularisation parameter
     if rho < ETA1:
         sigma *= GAMMA1
-        sigma = min(sigma, SIGMA_MAX)
+        sigma = min(sigma,SIGMA_MAX)
     elif rho >= ETA2:
         sigma *= GAMMA2
-        sigma = max(sigma, SIGMA_MIN)
+        sigma = max(sigma,SIGMA_MIN)
+
+    return x, sigma
+
+""" Regularization Update (Sophisticated) """
+def reg_update_fancy(f, x, s_S, S, gradf_S, Js_S, sigma):
+
+    # Trust Region parameters
+    ETA1 = 0.1
+    ETA2 = 0.75
+    GAMMA1 = 2.
+    GAMMA2 = 0.5
+    SIGMA_MIN = 1e-150
+    SIGMA_MAX = 1e150
+
+    # Evaluate sufficient decrease
+    s = np.zeros(len(x))
+    s[S] = s_S
+    fx = f(x)
+    fxs = f(x+s)
+    ss = np.dot(s_S,s_S)
+    gs = np.dot(gradf_S,s_S)
+    sHs = 0.5 * np.dot(Js_S,Js_S)
+    rho = (fx - fxs)/(-gs-0.5*sHs - 0.5*sigma*ss)
+
+    # Accept trial point
+    if rho >= ETA1:
+        x = x + s
+
+    # Update regularisation parameter
+    if rho < 0: # very unsuccessful
+        alpha_bad = (1-ETA1/2)*gs/(fx+gs-fxs)
+        sigma = (-gs-sHs*alpha_bad)/(alpha_bad*ss)
+    elif rho < ETA1: # unsuccessful
+        sigma *= GAMMA1
+        sigma = min(sigma,SIGMA_MAX)
+    elif rho >= ETA2: # very successful
+        sigma *= GAMMA2
+        sigma = max(sigma,SIGMA_MIN)
 
     return x, sigma
 

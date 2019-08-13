@@ -141,7 +141,8 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             #x, delta = tr_update(f, x, s_S, S, gradf_S, Delta_m, delta)
             x, delta = tr_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
         elif algorithm.startswith('reg'):
-            x, delta = reg_update(f, x, s_S, S, Delta_m, delta) # same as tr_update with grow/shrink swapped
+            x, delta = reg_update(f, x, s_S, S, Delta_m, delta)
+            #x, delta = reg_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
         else:
             s = np.zeros(n)
             s[S] = s_S
