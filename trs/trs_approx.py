@@ -122,7 +122,7 @@ def quadeq_pos(a, b, c):
     try:
         x1 = np.divide(-b + ma.sqrt(b * b - 4 * a * c), 2 * a)
         x2 = np.divide(-b - ma.sqrt(b * b - 4 * a * c), 2 * a)
-    except RuntimeWarning: # failed step: sigma too large
+    except RuntimeWarning: # failed step: delta too large
         x1 = 0
         x2 = 0
     warnings.resetwarnings()

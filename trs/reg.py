@@ -4,7 +4,7 @@ import numpy as np
 import scipy.linalg as linalg
 import math as ma
 
-""" Regularization Update (same as TR update with grow/shrink swapped) """
+""" Regularization Update (Standard) """
 def reg_update(f, x, s_S, S, Delta_m, sigma):
 
     # Trust Region parameters
@@ -37,7 +37,7 @@ def reg_update(f, x, s_S, S, Delta_m, sigma):
 """ Regularization Update (Sophisticated) """
 def reg_update_fancy(f, x, s_S, S, gradf_S, Js_S, sigma):
 
-    # Trust Region parameters
+    # Regularisation parameters
     ETA1 = 0.1
     ETA2 = 0.75
     GAMMA1 = 2.
@@ -52,7 +52,7 @@ def reg_update_fancy(f, x, s_S, S, gradf_S, Js_S, sigma):
     fxs = f(x+s)
     ss = np.dot(s_S,s_S)
     gs = np.dot(gradf_S,s_S)
-    sHs = 0.5 * np.dot(Js_S,Js_S)
+    sHs = np.dot(Js_S,Js_S)
     rho = (fx - fxs)/(-gs-0.5*sHs - 0.5*sigma*ss)
 
     # Accept trial point

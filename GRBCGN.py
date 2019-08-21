@@ -43,7 +43,7 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
         gradf_S = J_S.T.dot(rx)
 
         # Set initial trust region radius
-        if k == 0 and algorithm.startswith('tr') or algorithm == 'reg':
+        if k == 0 and (algorithm.startswith('tr') or algorithm == 'reg'):
             delta = linalg.norm(gradf_S)/10
             if delta == 0:
                 delta = 1
@@ -70,7 +70,7 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
 
             # Increase block size
             step = min(STEP,n-p_in)
-            # print 'Increasing block size to:', p_in+step
+            #print('Increasing block size to:',p_in+step)
 
             # Grow subspace
             S = gaussian_basis_grow(S, step)
@@ -78,6 +78,10 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
             # Assemble block-reduced matrices
             J_S = J(x).dot(S)
             gradf_S = J_S.T.dot(rx)
+
+            # Set initial trust region radius
+            if k == 0 and (algorithm.startswith('tr') or algorithm == 'reg'):
+                delta = linalg.norm(gradf_S)/10
 
             p_in += step
 
@@ -99,7 +103,7 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
             #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*np.power(linalg.norm(s_S),2) > 0
 
         budget += p_in
-        #print 'Iteration:', k, 'max block size:', p_in
+        #print('Iteration:', k, 'max block size:', p_in)
 
         # Update parameter and take step
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
