@@ -11,8 +11,8 @@ def creg_update(f, x, s_S, S, Delta_m, sigma):
     # Regularisation parameters
     ETA1 = 0.1
     ETA2 = 0.75
-    GAMMA1 = 2.
-    GAMMA2 = 0.5
+    GAMMA1 = ma.sqrt(2.)
+    GAMMA2 = ma.sqrt(0.5)
     SIGMA_MIN = 1e-150
     SIGMA_MAX = 1e150
 
@@ -41,9 +41,9 @@ def creg_update_fancy(f, x, s_S, S, gradf_S, Js_S, sigma):
     # Regularisation parameters
     ETA1 = 0.1
     ETA2 = 0.75
-    GAMMA1 = 2.
-    GAMMA2 = 0.5
-    GAMMA3 = 0.1
+    GAMMA1 = ma.sqrt(2.)
+    GAMMA2 = ma.sqrt(0.5)
+    GAMMA3 = ma.sqrt(0.1)
     EPSX = 1e-8
     BETA = 1./100
     ALPHAMAX = 2.
