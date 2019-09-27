@@ -2,15 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Bandit_d_Thompson_sampling:
-    def __init__(self,prior_mean,prior_lambda,tau,gamma):
+    def __init__(self,prior_mean,prior_lambda,tau,gamma,eta):
         self.N=0 #s_hat
-        self.gamma=gamma
+        self.gamma=gamma #gamma is the "remember" parameter for used update
+        self.eta=eta #eta is the increase factor for UNUSED 
         self.prior_mean=prior_mean
         self.prior_lambda=prior_lambda
         self.posterior_mean=prior_mean
         self.posterior_lambda=prior_lambda
         self.summ=0 #S
         self.tau=tau #by assumption fixed and we give it a value
+        #the measure is now the percentage share! the prior mean is 1/n
     
     def pull_sample_mean(self):
         sigma=1/np.sqrt(self.posterior_lambda)
@@ -21,6 +23,7 @@ class Bandit_d_Thompson_sampling:
     def update(self,x,used=True):
         tau=self.tau
         gamma=self.gamma
+        eta=self.eta
         #the mean is now itself a normally distribuited random variable with
         #mean: posterior_mean and inverse variance lambda_posterior
         #if self.summ!=0:
@@ -28,41 +31,58 @@ class Bandit_d_Thompson_sampling:
        # else:
        #     delta=((gamma-1)*self.N*self.prior_lambda*self.prior_mean+gamma*self.N*self.summ*tau+self.prior_lambda*self.summ)/(self.N*tau+self.prior_lambda)
         delta=gamma
-        if used:
+        if used: #if used then x is the gradient value
             self.N = self.N*gamma+1
             self.summ=self.summ*delta+x#mean=(1-1/self.N)*self.mean+1/self.N*x
         else:
             self.N = self.N*gamma
-            self.summ=self.summ*delta
+            self.summ=self.summ*gamma
         self.posterior_lambda=self.prior_lambda+tau*self.N#
         self.posterior_mean=(self.summ*tau+self.prior_lambda*self.prior_mean)/self.posterior_lambda
-
+    def correct_percentages(self,used_available_percentage_sum):
+        self.posterior_mean=self.posterior_mean/used_available_percentage_sum
 def Thompson_sample(n, init=False):
     
-    critical_measure_value=0.5#we do not take coordinates with measure below this value
-    #can make it time dependent i.e. iteration dependent later if needed.
+    target_percentage=0.9997
     global S
     global coordinate_bandits
     #pick all coordinates who's measures are above 
-    prior_mean=17#note that prior mean should be slightly above actual values and slightly
+    prior_mean=1/n#note that prior mean should be slightly above actual values and slightly
     #above critical_measure_value to encourage exploring
-    prior_lambda=0.1
-    tau=1
-    gamma=0.75#0.78
+    prior_lambda=14000/2*(n/50)**2
+    tau=18000
+    gamma=0.5#0.78 #remember rate for used
+    eta=0.5 #fremember rate for unused
+    #initialization------------------------------------------------------------
     if init: # no initialization required
         coordinate_bandits=[]
         for i in range(n): #use discounted thompson sampling and call the objects bandits for fun
-            coordinate_bandits.append(Bandit_d_Thompson_sampling(prior_mean,prior_lambda,tau,gamma))
+            coordinate_bandits.append(Bandit_d_Thompson_sampling(prior_mean,prior_lambda,tau,gamma,eta))
             #1st bandit coresponds to first coordinate and so on
         return
+    #end initialization--------------------------------------------------------
     
     #else if we do not initialize-here we just sample, 
     #a different function will be there for update
     # Measure, delta_x, No_current_coords,
     SS=[]
-    for i in range(n):
-        if critical_measure_value<coordinate_bandits[i].pull_sample_mean():#if the value I'm sampling is above the critical mean, include this coordinate
-            SS.append(i)
+    percentage=np.zeros(n)
+    for i in range(n):#sample percentages - do not use the mean directly!
+        percentage[i]=coordinate_bandits[i].pull_sample_mean()
+        if percentage[i]<0:#if we pull a number below zero
+            percentage[i]=0
+    total_percentage_sum_for_correction=np.sum(percentage)
+    for i in range(n):#correct such that they add up to 100% ie. to 1
+        percentage[i]=percentage[i]/total_percentage_sum_for_correction
+    #sort the vector
+    sorted_nginds = np.argsort(percentage)[::-1]
+    #now keep appending until we hit 99.997%  
+    current_percentage=0
+    i=0
+    while current_percentage<target_percentage:
+        SS.append(sorted_nginds[i])
+        current_percentage+=percentage[sorted_nginds[i]]
+        i=i+1
     if len(SS)==1:
         SS=np.array(SS)
         rem_inds = np.setdiff1d(np.arange(n),SS) 
@@ -83,12 +103,24 @@ def update_all_coordinates(subspace_gradient,S,n):
     #update used coordinates
     #print(len(S))
     #print(type(S[0]))
-    for coordinate in S:
-        coordinate_bandits[coordinate].update(subspace_gradient[coordinate],used=True)
-    #update used coordinates
     rem_inds = np.setdiff1d(np.arange(n),S) 
+    percentage_sum=0
     for coordinate in rem_inds:#update unusued corodinates
         coordinate_bandits[coordinate].update(0,used=False)
+        percentage_sum+=coordinate_bandits[coordinate].posterior_mean
+    #update the unused percentages/bandits first to check out how much
+    norm2=np.linalg.norm(subspace_gradient,ord=2)#extrapolate for the full norm after having updated the unused coords
+    norm2_squared=(norm2**2)*1/(1-percentage_sum)
+    correcting_percentage_sum=0
+    for coordinate in S:
+        percentage_update_x=subspace_gradient[coordinate]**2/norm2_squared
+        coordinate_bandits[coordinate].update(percentage_update_x,used=True)
+        correcting_percentage_sum+=coordinate_bandits[coordinate].posterior_mean
+    #now correct all used ones to add up to the correct percentage
+    for coordinate in S:
+        coordinate_bandits[coordinate].correct_percentages(correcting_percentage_sum/(1-percentage_sum))
+    #update used coordinates
+   
         
 if __name__ == '__main__':
   NoITER=20 

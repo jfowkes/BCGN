@@ -86,7 +86,7 @@ def greedy_gauss_southwell(n,p,gradfx,init=False,step=False):
     else: # fixed block size
         S=np.array([sorted_nginds[0],sorted_nginds[1]])
         subspace_2norm=np.linalg.norm(gradfx[S],ord=2)
-        zeta=0.997
+        zeta=0.9997
         while subspace_2norm<zeta*full_space_2norm:
             i=len(S)
             S=np.append(S,sorted_nginds[i])
@@ -323,6 +323,39 @@ def random_sample_drop_and_add(n,p,measure,already_dropped,already_dropped_measu
         return S, budget_increment, np.array([]), np.array([])
         #S is a vector of random coordinate indices
 
-        
+def Sequantial_tilt_sampling(n,p,gradfx,init=False,step=False):
+    """
+  WARNING!!!!! this sampling function DOES NOT return the coordinate index but rather 
+  A MATRIX OF BASIS VECTORS which generally  contain linear combinations of all
+  DIMENSTIONS so only use with finite difference- prototyping here
+  
+  WARNING - THIS HAS NOT BEEN CODED UP - I STARTED ADN LEFT IT THERE MIDWAY THROUGH
+"""
+    global S
+    
+    if init: # no initialization required
+        return
+    
+    full_space_2norm=np.linalg.norm(gradfx,ord=2)
+    normalised_grad_approx=gradfx/full_space_2norm
+    if p == n: # return full block
+        return np.arange(n)
+
+    # Evaluate and sort full gradient
+    sorted_nginds = np.argsort(np.fabs(gradfx))[::-1]
+
+    if step: # adaptively increase block size - 
+        #generate two more orthogonal vectors
+        S = sorted_nginds[0:len(S)+p]
+    else: # fixed block size
+        S=np.array([sorted_nginds[0],sorted_nginds[1]])
+        subspace_2norm=np.linalg.norm(gradfx[S],ord=2)
+        zeta=0.9997
+        while subspace_2norm<zeta*full_space_2norm:
+            i=len(S)
+            S=np.append(S,sorted_nginds[i])
+            subspace_2norm=np.linalg.norm(gradfx[S],ord=2)
+    return S
+
         
        

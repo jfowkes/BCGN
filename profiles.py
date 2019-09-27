@@ -13,7 +13,7 @@ import math
 # Dataset name(s)
 # basename = sys.argv[0] #use this to sort of get path then cut and paste the begning of the name
 #and then write it in basename fct
-basename='/home/constantin/Desktop/Disertation/Codes/BCGN/BCGN-TR-06.07.2019-17:50:27'
+basename='/home/constantin/Desktop/Disertation/Codes/BCGN/BCGN-TR-27.07.2019-02:15:48'
 if len(sys.argv) > 2:
     basename2 = sys.argv[2]
 
@@ -38,6 +38,10 @@ def main():
     metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
 
     # Plot and save performance, budget and grad. eval. profiles
+    labels[0]='SQ'
+    labels[1]='N/2D'
+    labels[3]='AD'
+    labels[2]='TR-GN'
     for imetr, metr in enumerate(metrics):
         fig_title = None
         budget_profile(measure[:,:,imetr,:],np.array(dimen),labels,fig_title,metr,'budget/')
@@ -134,7 +138,7 @@ def budget_profile(measure, dimen, solver_labels, fig_title, fig_name, save_dir)
 
     m = np.linspace(0, 50)#**2
     prof = np.vectorize(profile)
-    plt.figure(figsize=(10,6))
+    plt.figure(figsize=(6,4))
     plt.clf()
     for s in range(sn):
         y = prof(s, m) #!!!!!!!!!!!!!!

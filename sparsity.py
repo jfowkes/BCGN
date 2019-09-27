@@ -22,7 +22,7 @@ args = [{'N': 100}, {'N': 100}, {'NDP': 102}, {'P': 10}, {'N': 100}, {'N': 100},
 for ifunc, func in enumerate(funcs):
 
     # Get test function
-    r, J, x0 = get_test_problem(func, args[ifunc])
+    r, J, x0 = get_test_problem(func, args[ifunc],'tr')
 
     # Plot sparsity
     plt.figure(ifunc)

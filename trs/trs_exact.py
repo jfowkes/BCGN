@@ -45,6 +45,7 @@ def tr_update(f, x, s_S, S, gradf_S, Delta_m, delta, update='standard'):
         elif rho >= ETA2:
             delta *= GAMMA2
             delta = min(delta,DELTA_MAX)
+        
 
     return x, delta
 
