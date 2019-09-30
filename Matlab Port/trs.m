@@ -24,7 +24,7 @@ function s = trs(J, gradf, delta)
         end
         % Else trust region active
 
-    % J'J singular: lamda_1 = 0
+    % J'J singular: lambda_1 = 0
     else
 
         % Set lambda for newton iteration
@@ -38,12 +38,9 @@ function s = trs(J, gradf, delta)
 
         % Hard case: find eigenvector of zero eigenvalue
         if ns < delta
-            u = R\zeros(n,1); % since Q.T*zeros(m+p)=zeros(p)
+            [u,~] = eigs(R'*R,1,'smallestabs'); % since R'R = J'J + lambda*I
             alpha = roots([u'*u, 2*s'*u, s'*s-delta^2]); % Find quadratic roots
-            if isempty(alpha)
-                alpha = zeros(2,1); % failed step: delta too large
-            end
-            s = s + alpha(1)*u; % FIXME: choosing alpha at random?
+            s = modelmin(s+alpha(1)*u, s+alpha(2)*u); % Find step that makes trs model smallest
             return; 
         end
         % Else trust region active
@@ -53,7 +50,7 @@ function s = trs(J, gradf, delta)
     % Trust region active: newton iteration
     while abs(ns - delta) > KE * delta
 
-        % Solve R'w = s and calculate new lamda
+        % Solve R'w = s and calculate new lambda
         w = R'\s;
         nw = norm(w);
         lambda = lambda + (ns - delta)/delta * (ns/nw).^2;
@@ -65,4 +62,19 @@ function s = trs(J, gradf, delta)
         ns = norm(s);
         
     end
+    
+    % Hard case: find step that makes trs model smallest
+    function sh = modelmin(s1, s2)
+        Js1 = J*s1;
+        Js2 = J*s2;
+        qs1 = gradf'*s1 + 0.5*(Js1'*Js1);
+        qs2 = gradf'*s2 + 0.5*(Js2'*Js2);
+        if qs1 < qs2
+            sh = s1;
+        else
+            sh = s2;
+        end
+        return;
+    end
+        
 end

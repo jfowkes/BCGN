@@ -2,6 +2,7 @@
 from __future__ import absolute_import, division, unicode_literals, print_function
 import numpy as np
 import scipy.linalg as linalg
+from scipy.sparse.linalg import eigsh
 import math as ma
 import warnings
 
@@ -125,9 +126,10 @@ def trs(J_S, gradf_S, delta):
 
         # Hard case: find eigenvector of zero eigenvalue
         if ns_S < delta:
-            u_S = linalg.solve_triangular(R_S, np.zeros(p)) # since Q.T*zeros(m+p)=zeros(p)
+            _, u_S = eigsh(R_S.T.dot(R_S), k=1, which='SM') # since R_S'R_S = J_S'J_S + lamda*I
+            u_S = u_S[:,0] # flatten array
             alpha1, alpha2 = quadeq(np.dot(u_S, u_S), 2 * np.dot(s_S, u_S), np.dot(s_S, s_S) - delta ** 2) # Find quadratic roots
-            return s_S + alpha1 * u_S # FIXME: choosing alpha at random?
+            return modelmin(s_S+alpha1*u_S, s_S+alpha2*u_S, J_S, gradf_S) # Find step that makes trs model smallest
         # Else trust region active
 
     # Trust region active: newton iteration
@@ -157,6 +159,17 @@ def trs(J_S, gradf_S, delta):
         k += 1
 
     return s_S
+
+""" Hard case: find step that makes trs model smallest """
+def modelmin(s1_S, s2_S, J_S, gradf_S):
+    Js1_S = J_S.dot(s1_S)
+    Js2_S = J_S.dot(s2_S)
+    qs1_S = np.dot(gradf_S,s1_S) + 0.5*np.dot(Js1_S,Js1_S)
+    qs2_S = np.dot(gradf_S,s2_S) + 0.5*np.dot(Js2_S,Js2_S)
+    if qs1_S < qs2_S:
+        return s1_S
+    else:
+        return s2_S
 
 """ Return roots of quadratic equation """
 def quadeq(a, b, c):

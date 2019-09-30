@@ -2,6 +2,7 @@
 from __future__ import absolute_import, division, unicode_literals, print_function
 import numpy as np
 import scipy.linalg as linalg
+from scipy.sparse.linalg import eigsh
 import math as ma
 import warnings
 
@@ -147,9 +148,10 @@ def creg(J_S, gradf_S, sigma):
 
         # Hard case: find eigenvector of zero eigenvalue
         if ns_S < lamda/sigma:
-            u_S = linalg.solve_triangular(R_S, np.zeros(p)) # since Q.T*zeros(m+p)=zeros(p)
-            alpha1, alpha2 = quadeq(np.dot(u_S, u_S), 2 * np.dot(s_S, u_S), np.dot(s_S, s_S) - (lamda/sigma) ** 2) # Find quadratic roots
-            return s_S + alpha1 * u_S, sigma # FIXME: choosing alpha at random?
+            _, u_S = eigsh(R_S.T.dot(R_S), k=1, which='SM') # since R_S'R_S = J_S'J_S + lamda*I
+            u_S = u_S[:,0] # flatten array
+            alpha1, alpha2 = quadeq(np.dot(u_S,u_S), 2*np.dot(s_S,u_S), np.dot(s_S,s_S)-(lamda/sigma)**2) # Find quadratic roots
+            return modelmin(s_S+alpha1*u_S, s_S+alpha2*u_S, J_S, gradf_S, sigma)  # Find step that makes creg model smallest
         # Else newton iteration
 
     # Newton iteration for secular equation 1/ns_S = sigma/lamda
@@ -161,7 +163,7 @@ def creg(J_S, gradf_S, sigma):
         w_S = linalg.solve_triangular(R_S.T, s_S, lower=True)
         nw_S = linalg.norm(w_S)
         #lamda += lamda*(ns_S - lamda/sigma)/(ns_S + (lamda*nw_S/ns_S)**2/sigma) # painfully slow
-        lamda += quadeq_pos(nw_S**2/ns_S**3,1/ns_S+lamda*nw_S**2/ns_S**3,lamda/ns_S-sigma) # only linearise 1/ns_S
+        lamda += quadeq_pos(nw_S**2/ns_S**3, 1/ns_S+lamda*nw_S**2/ns_S**3, lamda/ns_S-sigma) # only linearise 1/ns_S
 
         # Handle issues in newton iteration: return suboptimal step
         if lamda < 0 or k == 15:
@@ -180,6 +182,17 @@ def creg(J_S, gradf_S, sigma):
         k += 1
 
     return s_S, sigma
+
+""" Hard case: find step that makes creg model smallest """
+def modelmin(s1_S, s2_S, J_S, gradf_S, sigma):
+    Js1_S = J_S.dot(s1_S)
+    Js2_S = J_S.dot(s2_S)
+    cs1_S = np.dot(gradf_S,s1_S) + 0.5*np.dot(Js1_S,Js1_S) + sigma*linalg.norm(s1_S)**3/3
+    cs2_S = np.dot(gradf_S,s2_S) + 0.5*np.dot(Js2_S,Js2_S) + sigma*linalg.norm(s2_S)**3/3
+    if cs1_S < cs2_S:
+        return s1_S, sigma
+    else:
+        return s2_S, sigma
 
 """ Return roots of quadratic equation """
 def quadeq(a, b, c):
