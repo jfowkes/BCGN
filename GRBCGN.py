@@ -35,7 +35,7 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
         if kappa == 1 and p == n: # GN
             S = np.eye(n)
         else: # random projection
-            S = gaussian_basis_randn(n, p)
+            S = gaussian_basis_randn(n,p)
 
         # Assemble block-reduced matrices
         J_S = J(x).dot(S)
@@ -43,7 +43,7 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
         gradf_S = J_S.T.dot(rx)
 
         # Set initial trust region radius
-        if k == 0 and (algorithm.startswith('tr') or algorithm == 'reg'):
+        if k == 0 and (algorithm.startswith('tr') or algorithm.__contains__('reg')):
             delta = linalg.norm(gradf_S)/10
             if delta == 0:
                 delta = 1
@@ -65,12 +65,11 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
         #stopping_rule = linalg.norm(gradf_S) > kappa*delta
 
         # Iteratively refine block size
-        p_in = p
-        while kappa != 1 and p_in != n and stopping_rule:
+        while kappa != 1 and S.shape[1] != n and stopping_rule:
 
             # Increase block size
-            step = min(STEP,n-p_in)
-            #print('Increasing block size to:',p_in+step)
+            step = min(STEP,n-S.shape[1])
+            #print('Increasing block size to:',S.shape[1]+step)
 
             # Grow subspace
             S = gaussian_basis_grow(S, step)
@@ -80,10 +79,8 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
             gradf_S = J_S.T.dot(rx)
 
             # Set initial trust region radius
-            if k == 0 and (algorithm.startswith('tr') or algorithm == 'reg'):
+            if k == 0 and (algorithm.startswith('tr') or algorithm.__contains__('reg')):
                 delta = linalg.norm(gradf_S)/10
-
-            p_in += step
 
             # Debug output
             #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
@@ -98,12 +95,11 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
             Js_S = J_S.dot(s_S)
             Delta_m = -np.dot(gradf_S,s_S) -0.5*np.dot(Js_S,Js_S)
             stopping_rule = -Delta_m + (1-kappa)/2*np.power(np.linalg.norm(rx),2) > 0
+            #stopping_rule = -Delta_m + kappa*delta*delta > 0
             #stopping_rule = linalg.norm(gradf_S) > kappa*delta
-            #Jx_S = J_S.dot(x.dot(U_S))
-            #stopping_rule = -Delta_m + np.dot(Js_S,Jx_S) + (sigma/2)*np.power(linalg.norm(s_S),2) > 0
 
-        budget += p_in
-        #print('Iteration:', k, 'max block size:', p_in)
+        budget += S.shape[1]
+        #print('Iteration:', k, 'max block size:', S.shape[1])
 
         # Update parameter and take step
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
@@ -116,14 +112,15 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
         # function decrease metrics
         if fig is None:
             for itau, tau in enumerate([1e-1,1e-3,1e-5,1e-7]):
-                if np.isnan(tau_budget[itau]) and np.linalg.norm(gradf(x)) <= tau*np.linalg.norm(gradf(x0)):
+                #if np.isnan(tau_budget[itau]) and np.linalg.norm(gradf(x)) <= tau*np.linalg.norm(gradf(x0)):
+                if np.isnan(tau_budget[itau]) and f(x) <= tau*f(x0): # function decrease condition as opposed to gradient
                     tau_budget[itau] = budget
             if np.all(np.isfinite(tau_budget)): # Stop if all function decrease metrics satisfied
                 return tau_budget
         else: # plotting
             plot_data[0,k] = f(x)-fxopt
             plot_data[1,k] = linalg.norm(gradf(x))
-            plot_data[2,k] = p_in
+            plot_data[2,k] = S.shape[1]
 
     # Debug output
     #monitor(k, r, x, f, delta, algorithm, gradf)
@@ -190,7 +187,7 @@ def monitor(k, r, x, f, delta, algorithm, gradf, gradf_S=None):
     print('++++ Iteration', k, '++++')
     if algorithm.startswith('tr'):
         print('delta: %.2e' % delta)
-    elif algorithm == 'reg':
+    elif algorithm.__contains__('reg'):
         print('sigma: %.2e' % delta)
     elif delta is not None:
         print('alpha: %.2e' % delta)

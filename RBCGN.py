@@ -107,7 +107,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
 
             # Set initial trust region radius
             if k == 0 and (algorithm.startswith('tr') or algorithm.__contains__('reg')):
-               delta = linalg.norm(gradf_S)/10
+                delta = linalg.norm(gradf_S)/10
 
             # Debug output
             #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
