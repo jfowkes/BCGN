@@ -76,7 +76,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             s_S, delta = creg(J_S, gradf_S, delta)
         elif algorithm == 'reg_approx':
             s_S = reg_approx(J_S, rx, delta)
-        else:
+        else: # linesearch
             s_S, delta = line_search(f, x, S, J_S, gradf_S)
 
         # Loop tolerance
@@ -127,7 +127,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
                 s_S, delta = creg(J_S, gradf_S, delta)
             elif algorithm == 'reg_approx':
                 s_S = reg_approx(J_S, rx, delta)
-            else:
+            else: # linesearch
                 s_S, delta = line_search(f, x, S, J_S, gradf_S)
 
             # Loop tolerance
@@ -151,7 +151,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         elif algorithm.startswith('creg'):
             #x, delta = creg_update(f, x, s_S, S, Delta_m, delta)
             x, delta = creg_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
-        else:
+        else: # linesearch
             s = np.zeros(n)
             s[S] = s_S
             x = x + delta*s
@@ -160,7 +160,8 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         # function decrease metrics
         if fig is None:
             for itau, tau in enumerate([1e-1,1e-3,1e-5,1e-7]):
-                if np.isnan(tau_budget[itau]) and np.linalg.norm(gradf(x)) <= tau*np.linalg.norm(gradf(x0)):
+                #if np.isnan(tau_budget[itau]) and np.linalg.norm(gradf(x)) <= tau*np.linalg.norm(gradf(x0)):
+                if np.isnan(tau_budget[itau]) and f(x) <= tau*f(x0): # function decrease condition as opposed to gradient
                     tau_budget[itau] = budget
             if np.all(np.isfinite(tau_budget)): # Stop if all function decrease metrics satisfied
                 return tau_budget
