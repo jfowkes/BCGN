@@ -33,7 +33,6 @@ def random_sample(n,p,init=False,step=False):
 
     return S
 
-# FIXME: initialize with sorted(gradfx) as global
 def gauss_southwell(n,p,gradfx,init=False,step=False):
     """
     Return coordinate block of p largest gradient entries

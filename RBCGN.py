@@ -37,6 +37,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
     k = 0
     x = x0
     delta = None
+    x_prev = None
     while (not fig and budget < it_max*n) or (fig and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
 
         # Randomly select blocks
@@ -87,12 +88,11 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         #stopping_rule = linalg.norm(gradf_S) > kappa*delta
 
         # Iteratively refine block size
-        p_in = len(S)
-        while kappa != 1 and p_in != n and stopping_rule:
+        while kappa != 1 and len(S) != n and stopping_rule:
 
             # Increase block size
-            step = min(STEP,n-p_in)
-            #print('Increasing block size to:',p_in+step)
+            step = min(STEP,n-len(S))
+            #print('Increasing block size to:',len(S)+step)
             S = sampling_func(n,step,step=True)
 
             # Assemble block-reduced matrices
@@ -108,8 +108,6 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             # Set initial trust region radius
             if k == 0 and (algorithm.startswith('tr') or algorithm.__contains__('reg')):
                delta = linalg.norm(gradf_S)/10
-
-            p_in += step
 
             # Debug output
             #monitor(k, r, x, f, delta, algorithm, gradf, gradf_S)
@@ -137,8 +135,15 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             #stopping_rule = -Delta_m + kappa*delta*delta > 0
             #stopping_rule = linalg.norm(gradf_S) > kappa*delta
 
-        budget += p_in
-        #print('Iteration:', k, 'max block size:', p_in)
+        # Update budget
+        if np.any(x != x_prev): # all coords are at new location
+            budget += len(S)
+            S_prev = S
+        else: # don't count already evaluated coords
+            budget += len(np.setdiff1d(S,S_prev))
+            S_prev = np.union1d(S_prev,S)
+        # print('Iteration:', k, 'max block size:', len(S))
+        x_prev = x
 
         # Update parameter and take step
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
@@ -168,7 +173,7 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         else: # plotting
             plot_data[0,k] = f(x)-fxopt
             plot_data[1,k] = linalg.norm(gradf(x))
-            plot_data[2,k] = p_in
+            plot_data[2,k] = len(S)
 
     # Debug output
     #monitor(k, r, x, f, delta, algorithm, gradf)
