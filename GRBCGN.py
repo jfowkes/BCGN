@@ -29,6 +29,7 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
     k = 0
     x = x0
     delta = None
+    x_prev = None
     while (not fig and budget < it_max*n) or (fig and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
 
         # Randomly select subspace
@@ -98,8 +99,13 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
             #stopping_rule = -Delta_m + kappa*delta*delta > 0
             #stopping_rule = linalg.norm(gradf_S) > kappa*delta
 
-        budget += S.shape[1]
+        # Update budget
+        if kappa == 1 and p == n and np.all(x == x_prev): # GN failed step
+            budget += 0 # don't count already evaluated coords
+        else: # all coords are at new location
+            budget += S.shape[1]
         #print('Iteration:', k, 'max block size:', S.shape[1])
+        x_prev = x
 
         # Update parameter and take step
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
