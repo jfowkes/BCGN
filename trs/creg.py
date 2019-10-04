@@ -14,8 +14,8 @@ def creg_update(f, x, s_S, S, Delta_m, sigma):
     ETA2 = 0.75
     GAMMA1 = ma.sqrt(2.)
     GAMMA2 = ma.sqrt(0.5)
-    SIGMA_MIN = 1e-150
-    SIGMA_MAX = 1e150
+    SIGMA_MIN = 1e-15
+    SIGMA_MAX = 1e3
 
     # Evaluate sufficient decrease
     s = np.zeros(len(x))
@@ -48,8 +48,8 @@ def creg_update_fancy(f, x, s_S, S, gradf_S, Js_S, sigma):
     EPSX = 1e-8
     BETA = 1./100
     ALPHAMAX = 2.
-    SIGMA_MIN = 1e-150
-    SIGMA_MAX = 1e150
+    SIGMA_MIN = 1e-15
+    SIGMA_MAX = 1e3
 
     # Evaluate sufficient decrease
     s = np.zeros(len(x))
@@ -99,7 +99,7 @@ def creg_update_fancy(f, x, s_S, S, gradf_S, Js_S, sigma):
                     sigma = max(sigma,SIGMA_MIN)
     elif rho >= 1 and xi < EPSX: # very successful
         sigma *= GAMMA2
-        sigma = max(sigma, SIGMA_MIN)
+        sigma = max(sigma,SIGMA_MIN)
     elif rho < 0: # very unsuccessful
         alpha_b = quadeq_pos(6*(fxs-qs),(3-ETA1)*sHs,2*(3-2*ETA1)*gs)
         sigma = (-gs-sHs*alpha_b)/(alpha_b*alpha_b*s3)

@@ -2,12 +2,12 @@
 function [x, delta] = tr_update(f, x, s, Delta_m, delta)
 
     % Trust Region parameters
-    ETA1 = 0.25;
+    ETA1 = 0.1;
     ETA2 = 0.75;
     GAMMA1 = 0.5;
     GAMMA2 = 2.;
-    DELTA_MIN = 1e-150;
-    DELTA_MAX = 1e150;
+    DELTA_MIN = 1e-15;
+    DELTA_MAX = 1e3;
 
     % Evaluate sufficient decrease
     rho = (f(x) - f(x+s))/Delta_m;

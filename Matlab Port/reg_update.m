@@ -2,12 +2,12 @@
 function [x, sigma] = reg_update(f, x, s, Delta_m, sigma)
 
     % Regularization parameters
-    ETA1 = 0.25;
+    ETA1 = 0.1;
     ETA2 = 0.75;
-    GAMMA1 = 2.;
-    GAMMA2 = 0.5;
-    SIGMA_MIN = 1e-150;
-    SIGMA_MAX = 1e150;
+    GAMMA1 = sqrt(2.);
+    GAMMA2 = sqrt(0.5);
+    SIGMA_MIN = 1e-15;
+    SIGMA_MAX = 1e3;
 
     % Evaluate sufficient decrease
     rho = (f(x) - f(x+s))/Delta_m;

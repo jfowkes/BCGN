@@ -7,45 +7,32 @@ import math as ma
 import warnings
 
 """ Trust Region Update """
-def tr_update(f, x, s_S, S, gradf_S, Delta_m, delta, update='standard'):
+def tr_update(f, x, s_S, S, Delta_m, delta):
 
     # Trust Region parameters
     ETA1 = 0.1
     ETA2 = 0.75
     GAMMA1 = 0.5
     GAMMA2 = 2.
-    COUPL = 0.1
-    DELTA_MIN = 1e-150
-    DELTA_MAX = 1e150
+    DELTA_MIN = 1e-15
+    DELTA_MAX = 1e3
 
     # Evaluate sufficient decrease
     s = np.zeros(len(x))
     s[S] = s_S
     rho = (f(x) - f(x+s))/Delta_m
 
-    # Couple delta to ng_S
-    if update == 'coupled':
+    # Accept trial point
+    if rho >= ETA1:
+        x = x + s
 
-        if rho >= ETA1 and linalg.norm(gradf_S) > COUPL*delta:
-            x = x + s
-        else:
-            delta *= GAMMA1
-            delta = max(delta, DELTA_MIN)
-
-    # Standard update
-    else:
-
-        # Accept trial point
-        if rho >= ETA1:
-            x = x + s
-
-        # Update trust region radius
-        if rho < ETA1:
-            delta *= GAMMA1
-            delta = max(delta,DELTA_MIN)
-        elif rho >= ETA2:
-            delta *= GAMMA2
-            delta = min(delta,DELTA_MAX)
+    # Update trust region radius
+    if rho < ETA1:
+        delta *= GAMMA1
+        delta = max(delta,DELTA_MIN)
+    elif rho >= ETA2:
+        delta *= GAMMA2
+        delta = min(delta,DELTA_MAX)
 
     return x, delta
 
@@ -58,8 +45,8 @@ def tr_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta):
     GAMMA3 = 0.1
     GAMMA1 = 0.5
     GAMMA2 = 2.
-    DELTA_MIN = 1e-150
-    DELTA_MAX = 1e150
+    DELTA_MIN = 1e-15
+    DELTA_MAX = 1e3
 
     # Evaluate sufficient decrease
     s = np.zeros(len(x))
