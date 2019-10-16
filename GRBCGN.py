@@ -1,12 +1,12 @@
 """ Gaussian Random Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
 from trs.trs_exact import trs
+from trs.reg import reg
 import numpy as np
 import scipy.linalg as linalg
 import math as ma
-import warnings
 
-def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr'):
+def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', subproblem='normal'):
     n = x0.size
 
     # Adaptive BCGN step size
@@ -18,7 +18,8 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
 
     # Plotting
     if fig is not None:
-        plot_data = np.full((3,it_max+1),np.nan)
+        plot_data = np.full((3,it_max+1),ftol)
+        plot_data[2,:] = np.full(it_max+1,np.nan)
         plot_data[0,0] = f(x0)-fxopt
         plot_data[1,0] = linalg.norm(gradf(x0))
 
@@ -55,8 +56,10 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
         # Solve subproblem
         if algorithm == 'tr':
             s_S = trs(J_S, gradf_S, delta)
+        elif algorithm == 'reg':
+            s_S, delta = reg(J_S, gradf_S, delta)
         else:
-            raise RuntimeError(algorithm + 'unimplemented!')
+            raise RuntimeError(algorithm + ' unimplemented!')
 
         # Loop tolerance
         Js_S = J_S.dot(s_S)
@@ -89,8 +92,10 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
             # Solve subproblem
             if algorithm == 'tr':
                 s_S = trs(J_S, gradf_S, delta)
+            elif algorithm == 'reg':
+                s_S, delta = reg(J_S, gradf_S, delta)
             else:
-                raise RuntimeError(algorithm + 'unimplemented!')
+                raise RuntimeError(algorithm + ' unimplemented!')
 
             # Loop tolerance
             Js_S = J_S.dot(s_S)
@@ -111,8 +116,10 @@ def GRBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorith
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
             x, delta = tr_update(f, x, s_S, S, Delta_m, delta)
+        elif algorithm.startswith('reg'):
+            x, delta = reg_update(f, x, s_S, S, Delta_m, delta)
         else:
-            raise RuntimeError(algorithm + 'unimplemented!')
+            raise RuntimeError(algorithm + ' unimplemented!')
         k += 1
 
         # function decrease metrics
@@ -154,8 +161,8 @@ def tr_update(f, x, s_S, S, Delta_m, delta):
     ETA2 = 0.75
     GAMMA1 = 0.5
     GAMMA2 = 2.
-    DELTA_MIN = 1e-150
-    DELTA_MAX = 1e150
+    DELTA_MIN = 1e-15
+    DELTA_MAX = 1e3
 
     # Evaluate sufficient decrease
     s = S.dot(s_S)
@@ -175,17 +182,34 @@ def tr_update(f, x, s_S, S, Delta_m, delta):
 
     return x, delta
 
-""" Return roots of quadratic equation """
-def quadeq(a, b, c):
-    warnings.simplefilter("error", RuntimeWarning)
-    try:
-        x1 = (-b + ma.sqrt(b * b - 4 * a * c)) / (2 * a)
-        x2 = (-b - ma.sqrt(b * b - 4 * a * c)) / (2 * a)
-    except RuntimeWarning: # failed step: delta too large
-        x1 = 0
-        x2 = 0
-    warnings.resetwarnings()
-    return x1, x2
+""" Regularization Update (Standard) """
+def reg_update(f, x, s_S, S, Delta_m, sigma):
+
+    # Regularisation parameters
+    ETA1 = 0.1
+    ETA2 = 0.75
+    GAMMA1 = ma.sqrt(2.)
+    GAMMA2 = ma.sqrt(0.5)
+    SIGMA_MIN = 1e-15
+    SIGMA_MAX = 1e3
+
+    # Evaluate sufficient decrease
+    s = S.dot(s_S)
+    rho = (f(x) - f(x+s))/(Delta_m - 0.5*sigma*np.dot(s_S,s_S))
+
+    # Accept trial point
+    if rho >= ETA1:
+        x = x + s
+
+    # Update regularisation parameter
+    if rho < ETA1:
+        sigma *= GAMMA1
+        sigma = min(sigma,SIGMA_MAX)
+    elif rho >= ETA2:
+        sigma *= GAMMA2
+        sigma = max(sigma,SIGMA_MIN)
+
+    return x, sigma
 
 """ Output Monitoring Information """
 def monitor(k, r, x, f, delta, algorithm, gradf, gradf_S=None):
@@ -206,8 +230,8 @@ def monitor(k, r, x, f, delta, algorithm, gradf, gradf_S=None):
         nJ_Srr = ng_S / nr
 
     print('x:', x, 'f(x):', f(x))
-    print('||r(x)||: %.2e' % nr, '||gradf(x)||: %.2e' % ng,end='')
-    if  gradf_S is not None: print('||gradf_S(x)||: %.2e' % ng_S)
+    print('||r(x)||: %.2e' % nr, '||g(x)||: %.2e' % ng,end='')
+    if  gradf_S is not None: print('||g_S(x)||: %.2e' % ng_S)
     print("||J'r||/||r||: %.2e" % nJrr,end='')
     if gradf_S is not None: print("||J_S'r||/||r||: %.2e" % nJ_Srr)
 

@@ -1,9 +1,9 @@
 """ Random Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
-from trs.trs_exact import trs, tr_update_fancy
+from trs.trs_exact import trs, tr_update, tr_update_fancy
 from trs.trs_approx import trs_approx, trs_approx_precon
-from trs.reg import reg, reg_update_fancy
-from trs.creg import creg, creg_update_fancy
+from trs.reg import reg, reg_update, reg_update_fancy
+from trs.creg import creg, creg_update, creg_update_fancy
 from trs.reg_approx import reg_approx
 from trs.line_search import line_search
 from scipy.sparse import csr_matrix
@@ -11,7 +11,7 @@ import numpy as np
 import scipy.linalg as linalg
 import math as ma
 
-def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr'):
+def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', subproblem='fancy'):
     n = x0.size
 
     # Adaptive BCGN step size
@@ -23,7 +23,8 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
 
     # Plotting
     if fig is not None:
-        plot_data = np.full((3,it_max+1),np.nan)
+        plot_data = np.full((3,it_max+1),ftol)
+        plot_data[2,:] = np.full(it_max+1,np.nan)
         plot_data[0,0] = f(x0)-fxopt
         plot_data[1,0] = linalg.norm(gradf(x0))
 
@@ -148,14 +149,20 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         # Update parameter and take step
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
-            #x, delta = tr_update(f, x, s_S, S, gradf_S, Delta_m, delta)
-            x, delta = tr_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
+            if subproblem != 'fancy': # standard update
+                x, delta = tr_update(f, x, s_S, S, Delta_m, delta)
+            else: # sophisticated update
+                x, delta = tr_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
         elif algorithm.startswith('reg'):
-            #x, delta = reg_update(f, x, s_S, S, Delta_m, delta)
-            x, delta = reg_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
+            if subproblem != 'fancy': # standard update
+                x, delta = reg_update(f, x, s_S, S, Delta_m, delta)
+            else: # sophisticated update
+                x, delta = reg_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
         elif algorithm.startswith('creg'):
-            #x, delta = creg_update(f, x, s_S, S, Delta_m, delta)
-            x, delta = creg_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
+            if subproblem != 'fancy': # standard update
+                x, delta = creg_update(f, x, s_S, S, Delta_m, delta)
+            else: # sophisticated update
+                x, delta = creg_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
         else: # linesearch
             s = np.zeros(n)
             s[S] = s_S
@@ -203,8 +210,8 @@ def monitor(k, r, x, f, delta, algorithm, gradf, gradf_S=None):
         nJ_Srr = ng_S / nr
 
     print('x:', x, 'f(x):', f(x))
-    print('||r(x)||: %.2e' % nr, '||gradf(x)||: %.2e' % ng,end='')
-    if  gradf_S is not None: print('||gradf_S(x)||: %.2e' % ng_S)
+    print('||r(x)||: %.2e' % nr, '||g(x)||: %.2e' % ng,end='')
+    if  gradf_S is not None: print('||g_S(x)||: %.2e' % ng_S)
     print("||J'r||/||r||: %.2e" % nJrr,end='')
     if gradf_S is not None: print("||J_S'r||/||r||: %.2e" % nJ_Srr)
 
