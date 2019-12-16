@@ -15,8 +15,8 @@ import pycutest
 def main():
 
     # Main parameters
-    IT_MAX = 100000 # Max iterations (plot=True) / full gradient evaluations (plot=False)
-    NO_INSTANCES = 1 # No. random runs
+    IT_MAX = 100 # Max iterations (plot=True) / full gradient evaluations (plot=False)
+    NO_INSTANCES = 5 # No. random runs
     FTOL = 1e-10
     ALG = 'tr'
     SUB = 'normal'
@@ -31,20 +31,17 @@ def main():
 
     # Test functions
     #from problems.cutest32_zero import funcs, args, dimen, fxopts
-    funcs = ['BROWNALE'] # 'HYDCAR20', 'YATP1SQ', 'YATP2SQ', 'BROWNALE'
-    args = [{'N':100}] # None, {'N':10}, {'N':10}, {'N':100}
+    funcs = ['HYDCAR20'] #['BROWNALE', 'HYDCAR20', 'YATP1SQ', 'YATP2SQ']
+    args =  [None] #[{'N':100}, None, {'N':10}, {'N':10}]
     fxopts = [0]
-    kappas = [1]
-    #from problems.oscillatory import funcs, args, dimen, fxopts
-    #kappas = [1e-1,1e-2,1e-3,1e-4,1e-5,1e-6,1e-7,1e-8]
-    #kappas = [0.6,0.7,0.8,0.9]
+    kappas = [1, 0.7]
 
     # Performance profile data
     if PLOT:
         import matplotlib.pyplot as plt
         from matplotlib import cm
         from matplotlib.lines import Line2D
-        #markers = ['o','v','^','<','>','s','p','P','H','D']
+        markers = ['o','v','^','<','>','s','p','P','H','D']
     else:
         metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
         measures = np.full((len(funcs),len(kappas)+2,len(metrics),NO_INSTANCES),np.nan)
@@ -84,10 +81,8 @@ def main():
                 #labels = [r'$' + str(p) + '$-BCGN' for p in range(1,n)]
                 #labels += ['GN']
                 ishift = 0
-                blocks = [40]
-                labels = [r'$40$-BCGN']
-                #blocks = [2,int(round(n/2)),n]
-                #labels = [r'$2$-BCGN',r'$\frac{n}{2}$-BCGN','GN']
+                blocks = [2,int(round(n/2)),n]
+                labels = [r'$2$-BCGN',r'$\frac{n}{2}$-BCGN','GN']
             else:
                 ishift = 2+ikappa
                 blocks = [2]
@@ -124,9 +119,11 @@ def main():
 
                 # Plotting
                 if PLOT:
-                    # truncate to last converged run
-                    lrun = min(np.where((Ys[0,:,:] == FTOL).all(axis=1))[0])+1
-                    X = X[:lrun]; Ys = Ys[:,:lrun,:]
+                    try: # truncate to last converged run
+                        lrun = min(np.where((Ys[0,:,:] == FTOL).all(axis=1))[0])+1
+                        X = X[:lrun]; Ys = Ys[:,:lrun,:]
+                    except ValueError:
+                        pass
                     if PLOT_TYPE == 'avg': # average runs for plotting
                         warnings.simplefilter("ignore", RuntimeWarning)
                         ax1.semilogy(X,np.mean(Ys[0,:,:],axis=-1),linewidth=2)
@@ -137,11 +134,11 @@ def main():
                         #ax3.fill_between(X,np.nanmin(Ys[2,:,:],axis=-1),np.nanmax(Ys[2,:,:],axis=-1),alpha=0.5)
                         warnings.resetwarnings()
                     else: # plot all runs
-                        col = cm.tab10((ishift+ip)/(len(kappas)+n-1))
+                        col = cm.tab10((ishift+ip)/len(kappas))
                         legend_lines += [Line2D([0],[0],color=col,linewidth=2)]
                         for iseed, seed in enumerate(seeds):
-                            ax1.semilogy(X,Ys[0,:,iseed],color=col)#,marker=markers[iseed],markevery=100)
-                            ax2.semilogy(X,Ys[1,:,iseed],color=col)#,marker=markers[iseed],markevery=100)
+                            ax1.semilogy(X,Ys[0,:,iseed],color=col,marker=markers[iseed],markevery=10)
+                            ax2.semilogy(X,Ys[1,:,iseed],color=col,marker=markers[iseed],markevery=10)
                 else:
                     pickle.dump(measures, open(basename+'.measure', 'wb'), protocol=-1)
                     pickle.dump(dimen, open(basename+'.dimen', 'wb'), protocol=-1)

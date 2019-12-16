@@ -1,7 +1,7 @@
 """ Random Block-Coordinate Gauss-Newton """
 from __future__ import absolute_import, division, unicode_literals, print_function
 from trs.trs_exact import trs, tr_update, tr_update_fancy
-from trs.trs_approx import trs_approx, trs_approx_precon
+from trs.trs_approx import trs_approx_precon
 from trs.reg import reg, reg_update, reg_update_fancy
 from trs.creg import creg, creg_update, creg_update_fancy
 from trs.reg_approx import reg_approx
@@ -69,8 +69,6 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         if algorithm == 'tr':
             s_S = trs(J_S, gradf_S, delta)
         elif algorithm == 'tr_approx':
-            s_S = trs_approx(J_S, J_ST, gradf_S, delta)
-        elif algorithm == 'tr_approx_precon':
             s_S = trs_approx_precon(J_S, J_ST, gradf_S, delta)
         elif algorithm == 'reg':
             s_S, delta = reg(J_S, gradf_S, delta)
@@ -117,8 +115,6 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             if algorithm == 'tr':
                 s_S = trs(J_S, gradf_S, delta)
             elif algorithm == 'tr_approx':
-                s_S = trs_approx(J_S, J_ST, gradf_S, delta)
-            elif algorithm == 'tr_approx_precon':
                 s_S = trs_approx_precon(J_S, J_ST, gradf_S, delta)
             elif algorithm == 'reg':
                 s_S, delta = reg(J_S, gradf_S, delta)
@@ -211,8 +207,8 @@ def monitor(k, r, x, f, delta, algorithm, gradf, gradf_S=None):
 
     print('x:', x, 'f(x):', f(x))
     print('||r(x)||: %.2e' % nr, '||g(x)||: %.2e' % ng,end='')
-    if  gradf_S is not None: print('||g_S(x)||: %.2e' % ng_S)
+    if  gradf_S is not None: print(' ||g_S(x)||: %.2e' % ng_S)
     print("||J'r||/||r||: %.2e" % nJrr,end='')
-    if gradf_S is not None: print("||J_S'r||/||r||: %.2e" % nJ_Srr)
+    if gradf_S is not None: print(" ||J_S'r||/||r||: %.2e" % nJ_Srr)
 
     if gradf_S is None: print()

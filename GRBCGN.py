@@ -231,8 +231,8 @@ def monitor(k, r, x, f, delta, algorithm, gradf, gradf_S=None):
 
     print('x:', x, 'f(x):', f(x))
     print('||r(x)||: %.2e' % nr, '||g(x)||: %.2e' % ng,end='')
-    if  gradf_S is not None: print('||g_S(x)||: %.2e' % ng_S)
+    if  gradf_S is not None: print(' ||g_S(x)||: %.2e' % ng_S)
     print("||J'r||/||r||: %.2e" % nJrr,end='')
-    if gradf_S is not None: print("||J_S'r||/||r||: %.2e" % nJ_Srr)
+    if gradf_S is not None: print(" ||J_S'r||/||r||: %.2e" % nJ_Srr)
 
     if gradf_S is None: print()
