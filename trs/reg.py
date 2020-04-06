@@ -17,8 +17,7 @@ def reg_update(f, x, s_S, S, Delta_m, sigma):
     SIGMA_MAX = 1e3
 
     # Evaluate sufficient decrease
-    s = np.zeros(len(x))
-    s[S] = s_S
+    s = S.dot(s_S)
     rho = (f(x) - f(x+s))/(Delta_m - 0.5*sigma*np.dot(s_S,s_S))
 
     # Accept trial point
@@ -51,8 +50,7 @@ def reg_update_fancy(f, x, s_S, S, gradf_S, Js_S, sigma):
     SIGMA_MAX = 1e3
 
     # Evaluate sufficient decrease
-    s = np.zeros(len(x))
-    s[S] = s_S
+    s = S.dot(s_S)
     fx = f(x)
     fxs = f(x+s)
     ss = np.dot(s_S,s_S)

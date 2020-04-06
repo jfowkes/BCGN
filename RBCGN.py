@@ -11,26 +11,22 @@ import numpy as np
 import scipy.linalg as linalg
 import math as ma
 
-def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm='tr', subproblem='fancy'):
+def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-10, fxopt=0, runtype='plot', grad_evals=None, metrics=None, algorithm='tr', subproblem='normal'):
     n = x0.size
-
-    # Adaptive BCGN step size
-    STEP = 5
 
     # Full function and gradient
     def f(z): return 0.5 * np.dot(r(z), r(z))
     def gradf(z): return J(z).T.dot(r(z))
 
-    # Plotting
-    if fig is not None:
-        plot_data = np.full((3,it_max+1),ftol)
-        plot_data[2,:] = np.full(it_max+1,np.nan)
+    if runtype == 'plot': # plotting
+        plot_data = np.full((3,it_max+1),np.nan)
         plot_data[0,0] = f(x0)-fxopt
         plot_data[1,0] = linalg.norm(gradf(x0))
-
-    # Metrics
-    budget = 0
-    tau_budget = np.full(4,np.nan)
+    elif runtype == 'metrics': # metrics
+        budget = 0
+        tau_budget = np.full(len(metrics),np.nan)
+    else:
+        raise ValueError('Uknown runtype '+runtype)
 
     # Initialize block sampling function
     sampling_func(n,p,init=True)
@@ -39,20 +35,19 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
     x = x0
     delta = None
     x_prev = None
-    while (not fig and budget < it_max*n) or (fig and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
+    while (runtype == 'metrics' and budget < grad_evals*n) or (runtype == 'plot' and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
 
         # Randomly select blocks
         S = sampling_func(n,p)
 
         # Assemble block-reduced matrices
         if 'tr_approx' in algorithm: # sparse
-            U_S = csr_matrix((np.ones(len(S)),(S,range(len(S)))),shape=(n,len(S)))
-            J_S = J(x).dot(U_S)
+            J_S = J(x).dot(csr_matrix(S))
             J_ST = J_S.T.tocsr()
             rx = r(x)
             gradf_S = J_ST.dot(rx)
         else: # dense
-            J_S = J(x)[:,S]
+            J_S = J(x).dot(S)
             rx = r(x)
             gradf_S = J_S.T.dot(rx)
 
@@ -87,21 +82,20 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         #stopping_rule = linalg.norm(gradf_S) > kappa*delta
 
         # Iteratively refine block size
-        while kappa != 1 and len(S) != n and stopping_rule:
+        while kappa != 1 and S.shape[1] != n and stopping_rule:
 
             # Increase block size
-            step = min(STEP,n-len(S))
-            #print('Increasing block size to:',len(S)+step)
+            step = min(astep,n-S.shape[1])
+            #print('Increasing block size to:',S.shape[1]+step)
             S = sampling_func(n,step,step=True)
 
             # Assemble block-reduced matrices
             if 'tr_approx' in algorithm: # sparse
-                U_S = csr_matrix((np.ones(len(S)),(S,range(len(S)))),shape=(n,len(S)))
-                J_S = J(x).dot(U_S)
+                J_S = J(x).dot(csr_matrix(S))
                 J_ST = J_S.T.tocsr()
                 gradf_S = J_ST.dot(rx)
             else: # dense
-                J_S = J(x)[:,S]
+                J_S = J(x).dot(S)
                 gradf_S = J_S.T.dot(rx)
 
             # Set initial trust region radius
@@ -132,15 +126,16 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             #stopping_rule = -Delta_m + kappa*delta*delta > 0
             #stopping_rule = linalg.norm(gradf_S) > kappa*delta
 
-        # Update budget
-        if np.any(x != x_prev): # all coords are at new location
-            budget += len(S)
-            S_prev = S
-        else: # don't count already evaluated coords
-            budget += len(np.setdiff1d(S,S_prev))
-            S_prev = np.union1d(S_prev,S)
-        # print('Iteration:', k, 'max block size:', len(S))
-        x_prev = x
+        # Update coord/column budget
+        if runtype == 'metrics':
+            if np.any(x != x_prev): # we are at new location
+                budget += S.shape[1]
+                S_prev = S
+            else: # x == x_prev so don't count already evaluated coords/columns
+                budget += len(set(map(tuple,S.T)) - set(map(tuple,S_prev.T))) # column difference
+                S_prev = np.array(list(set(map(tuple,S_prev.T)) | set(map(tuple,S.T)))).T # column union
+            # print('Iteration:', k, 'max block size:', S.shape[1])
+            x_prev = x
 
         # Update parameter and take step
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
@@ -160,14 +155,13 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
             else: # sophisticated update
                 x, delta = creg_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
         else: # linesearch
-            s = np.zeros(n)
-            s[S] = s_S
+            s = S.dot(s_S)
             x = x + delta*s
         k += 1
 
         # function decrease metrics
-        if fig is None:
-            for itau, tau in enumerate([1e-1,1e-3,1e-5,1e-7]):
+        if runtype == 'metrics':
+            for itau, tau in enumerate(metrics):
                 #if np.isnan(tau_budget[itau]) and np.linalg.norm(gradf(x)) <= tau*np.linalg.norm(gradf(x0)):
                 if np.isnan(tau_budget[itau]) and f(x) <= tau*f(x0): # function decrease condition as opposed to gradient
                     tau_budget[itau] = budget
@@ -176,15 +170,15 @@ def RBCGN(r, J, x0, sampling_func, fxopt, it_max, ftol, p, fig, kappa, algorithm
         else: # plotting
             plot_data[0,k] = f(x)-fxopt
             plot_data[1,k] = linalg.norm(gradf(x))
-            plot_data[2,k] = len(S)
+            plot_data[2,k] = S.shape[1]
 
     # Debug output
     #monitor(k, r, x, f, delta, algorithm, gradf)
 
     # Return function decrease metrics (some unsatisfied)
-    if fig is None:
+    if runtype == 'metrics':
         return tau_budget
-    else: # plotting
+    else: # else return plot data
         return plot_data
 
 """ Output Monitoring Information """

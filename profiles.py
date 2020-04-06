@@ -1,71 +1,45 @@
-""" Plot performance and budget profiles """
+""" Plot performance and budget profiles (treating each run as a 'separate function') """
 from __future__ import division
-from cycler import cycler
-from palettable.colorbrewer import qualitative
 import matplotlib.pyplot as plt
 import numpy as np
-import warnings
-import pickle
-import sys
+import pandas as pd
 import os
 
-# Dataset name(s)
-basename = sys.argv[1]
-if len(sys.argv) > 2:
-    basename2 = sys.argv[2]
+# Dataset name and tolerance
+basename = 'BCGN-TR-NORMAL-COORDINATE'
+tol = '1e-01'
 
 def main():
 
-    # Load data(s)
-    funcs = pickle.load(open(basename+'.funcs','rb'))
-    dimen = pickle.load(open(basename+'.dimen','rb'))
-    measure1 = pickle.load(open(basename+'.measure','rb'))
-    if len(sys.argv) > 2:
-        measure2 = pickle.load(open(basename2+'.measure','rb'))
-        measure = np.hstack((measure1,measure2))
-    else:
-        measure = measure1
-    labels1 = pickle.load(open(basename+'.labels','rb'))
-    if len(sys.argv) > 2:
-        labels2 = pickle.load(open(basename2+'.labels','rb'))
-        #labels2 = [l+' beta' for l in labels2]
-        labels = np.hstack((labels1,labels2))
-    else:
-        labels = labels1
-    metrics = ['budget: tau 1e-1','budget: tau 1e-3','budget: tau 1e-5','budget: tau 1e-7']
-
-    # Treat each run as a 'separate function'
-    num_runs = measure.shape[-1]
-    measure = np.transpose(np.concatenate(measure,axis=-1),(2,0,1))
-    funcs = np.repeat(funcs,num_runs)
-    dimen = np.repeat(dimen,num_runs)
+    # Load data
+    measure = pd.read_pickle(basename+'_'+tol+'.measure')
+    print(measure)
+    dimen = pd.read_pickle(basename+'.dimen')
+    print(dimen)
+    num_runs = measure.shape[0]/dimen.shape[1]
+    dimen = np.repeat(dimen.to_numpy(),num_runs)
 
     # Plot and save performance, budget and grad. eval. profiles
-    for imetr, metr in enumerate(metrics):
-        fig_title = None
-        performance_profile(measure[:,:,imetr],labels,fig_title,metr,'perf/')
-        budget_profile(measure[:,:,imetr],np.array(dimen),labels,fig_title,metr,'budget/')
-        grad_evals(measure[:,:,imetr],np.array(dimen),funcs,labels,fig_title,metr,'evals/')
+    fig_title = None
+    fig_name = basename+'_'+tol
+    performance_profile(measure,fig_title,fig_name,'perf/')
+    budget_profile(measure,np.array(dimen),fig_title,fig_name,'budget/')
+    grad_evals(measure,np.array(dimen),fig_title,fig_name,'evals/')
 
 """ Calculate and Plot Performance Profile """
-def performance_profile(measure, solver_labels, fig_title, fig_name, save_dir):
+def performance_profile(measure, fig_title, fig_name, save_dir):
     '''
-    :param measure: prob x solver array,
+    :param measure: prob x solver DataFrame,
      smallest values assumed to be the best
     '''
-
-    # Set up colour brewer colours
-    plt.rc('axes', prop_cycle=cycler('color', qualitative.Set1_9.mpl_colors))
 
     pn = measure.shape[0]
     sn = measure.shape[1]
 
-    warnings.simplefilter("ignore", RuntimeWarning)
     ratio = np.zeros((pn, sn))
     for p in range(pn):
         for s in range(sn):
-            ratio[p, s] = measure[p, s] / np.nanmin(measure[p, :])
-    warnings.resetwarnings()
+            ratio[p, s] = measure.iloc[p, s] / np.nanmin(measure.iloc[p, :])
 
     def profile(s, t):
         prob = 0
@@ -84,7 +58,7 @@ def performance_profile(measure, solver_labels, fig_title, fig_name, save_dir):
     plt.grid()
     plt.xlabel('Performance Ratio')
     plt.ylabel('% Problems Solved')
-    plt.legend(solver_labels, loc='lower right')
+    plt.legend(measure.columns, loc='lower right')
     if fig_title:
         plt.title(fig_title, fontsize=13)
     plt.tight_layout()
@@ -94,23 +68,20 @@ def performance_profile(measure, solver_labels, fig_title, fig_name, save_dir):
 
 
 """ Calculate and Plot Budget Profile """
-def budget_profile(measure, dimen, solver_labels, fig_title, fig_name, save_dir):
+def budget_profile(measure, dimen, fig_title, fig_name, save_dir):
     '''
     :param measure: prob x solver array,
      smallest values assumed to be the best
     '''
 
-    # Set up colour brewer colours
-    plt.rc('axes', prop_cycle=cycler('color', qualitative.Set1_9.mpl_colors))
-
     pn = measure.shape[0]
     sn = measure.shape[1]
 
     # scale budget by dimension
-    ratio = np.zeros((pn, sn))
+    ratio = np.zeros((pn,sn))
     for p in range(pn):
         for s in range(sn):
-            ratio[p, s] = measure[p, s] / dimen[p]
+            ratio[p, s] = measure.iloc[p, s] / dimen[p]
 
     def profile(s, m):
         prob = 0
@@ -129,7 +100,7 @@ def budget_profile(measure, dimen, solver_labels, fig_title, fig_name, save_dir)
     plt.grid()
     plt.xlabel('Budget')
     plt.ylabel('% Problems Solved')
-    plt.legend(solver_labels, loc='lower right')
+    plt.legend(measure.columns, loc='lower right')
     if fig_title:
         plt.title(fig_title, fontsize=13)
     plt.tight_layout()
@@ -138,32 +109,31 @@ def budget_profile(measure, dimen, solver_labels, fig_title, fig_name, save_dir)
     plt.savefig(save_dir + '/' + fig_name)
 
 """ Plot gradient evaluations """
-def grad_evals(measure, dimen, prob_labels, solver_labels, fig_title, fig_name, save_dir):
+def grad_evals(measure, dimen, fig_title, fig_name, save_dir):
     '''
     :param measure: prob x solver array,
      smallest values assumed to be the best
     '''
-
-    # Set up colour brewer colours
-    plt.rc('axes', prop_cycle=cycler('color', qualitative.Set1_9.mpl_colors))
     markers = ['v','D','s','o','^','*','x','+','d','.','3','>','<','1','2','4','8','|','_','h','p']
 
+    pn = measure.shape[0]
+    sn = measure.shape[1]
+
     # Scale by dimension to get gradient evals
-    nfuncs = measure.shape[0]
-    for f in range(nfuncs):
-        measure[f,:] = measure[f,:]/dimen[f]
+    for p in range(pn):
+        measure.iloc[p,:] = measure.iloc[p,:] / dimen[p]
 
     plt.figure(100)
     plt.clf()
-    for s in range(len(solver_labels)):
-        plt.plot(np.arange(nfuncs), measure[:,s], '.', marker=markers[s], markerSize=5, clip_on=False)
+    for s in range(sn):
+        plt.plot(np.arange(pn), measure.iloc[:,s], '.', marker=markers[s], markerSize=5, clip_on=False)
 
-    plt.xticks(range(nfuncs),prob_labels,rotation=45,ha='right')
+    plt.xticks(range(pn),measure.index,rotation=45,ha='right')
     plt.grid(alpha=0.5)
-    plt.xlim([0,nfuncs-1])
+    plt.xlim([0,pn-1])
     plt.ylim([0,50])
     plt.ylabel('Grad. evals')
-    plt.legend(solver_labels)
+    plt.legend(measure.columns)
     if fig_title:
         plt.title(fig_title, fontsize=13)
     plt.tight_layout()

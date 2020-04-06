@@ -1,7 +1,7 @@
 """ 20 CUTEst zero residual problems """
 
 funcs = ['ARGTRIG','ARTIF','ARWHDNE','BDVALUES','BRATU2D','BRATU3D','BROWNALE','BROYDN3D','BROYDNBD','CBRATU2D',
-             'CBRATU3D','CHANDHEQ','DRCAVTY1','DRCAVTY2','INTEGREQ','OSCIPANE','QR3D','QR3DBD','YATP1SQ','YATP2SQ']
+             'CBRATU3D','CHANDHEQ','DRCAVTY1','DRCAVTY2','INTEGREQ','OSCIPANE','QR3D','QR3DBD','YATP1NE','YATP2SQ']
 
 args = [{'N':100},{'N':100},{'N':100},{'NDP':102},{'P':10},{'P':5},{'N':100},{'N':100},{'N':100},{'P':7},
             {'P':4},{'N':100},{'M':10},{'M':10},{'N':100},{'N':100},{'M':10},{'M':10},{'N':10},{'N':10}]

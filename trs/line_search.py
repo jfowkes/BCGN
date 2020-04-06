@@ -47,8 +47,7 @@ def b_Armijo(S, s_S, x, f, gradf_S):
     RHO = 0.5  # in (0,1)
 
     fx = f(x)
-    s = np.zeros(len(x))
-    s[S] = s_S
+    s = S.dot(s_S)
     delta = C*np.dot(gradf_S,s_S)
     while f(x + alpha*s) > fx + alpha*delta and alpha > 0:
         alpha *= RHO

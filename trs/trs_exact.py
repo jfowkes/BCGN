@@ -2,7 +2,6 @@
 from __future__ import absolute_import, division, unicode_literals, print_function
 import numpy as np
 import scipy.linalg as linalg
-from scipy.sparse.linalg import eigsh
 import math as ma
 import warnings
 
@@ -18,8 +17,7 @@ def tr_update(f, x, s_S, S, Delta_m, delta):
     DELTA_MAX = 1e3
 
     # Evaluate sufficient decrease
-    s = np.zeros(len(x))
-    s[S] = s_S
+    s = S.dot(s_S)
     rho = (f(x) - f(x+s))/Delta_m
 
     # Accept trial point
@@ -49,8 +47,7 @@ def tr_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta):
     DELTA_MAX = 1e3
 
     # Evaluate sufficient decrease
-    s = np.zeros(len(x))
-    s[S] = s_S
+    s = S.dot(s_S)
     fx = f(x)
     fxs = f(x+s)
     gs = np.dot(gradf_S,s_S)
@@ -113,7 +110,7 @@ def trs(J_S, gradf_S, delta):
 
         # Hard case: find eigenvector of zero eigenvalue
         if ns_S < delta:
-            _, u_S = eigsh(R_S.T.dot(R_S), k=1, which='SM') # since R_S'R_S = J_S'J_S + lamda*I
+            _, u_S = linalg.eigh(R_S.T.dot(R_S),eigvals=(0,0)) # since R_S'R_S = J_S'J_S + lamda*I
             u_S = u_S[:,0] # flatten array
             alpha1, alpha2 = quadeq(np.dot(u_S, u_S), 2 * np.dot(s_S, u_S), np.dot(s_S, s_S) - delta ** 2) # Find quadratic roots
             return modelmin(s_S+alpha1*u_S, s_S+alpha2*u_S, J_S, gradf_S) # Find step that makes trs model smallest

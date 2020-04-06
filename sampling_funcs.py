@@ -1,4 +1,4 @@
-""" Default Block Sampling Functions """
+""" Sampling Functions """
 from __future__ import absolute_import, division, unicode_literals, print_function
 import numpy as np
 
@@ -7,14 +7,14 @@ S = None # sampled coordinates
 cyclic_state = 0 # cyclic state
 block_part = None # block partition
 
-def random_sample(n,p,init=False,step=False):
+def random_coordinate(n,p,init=False,step=False):
     """
     Sample coordinate block of size p at random from n
 
     :param n: problem dimension
     :param p: block size
     :param step: adaptively increase block size
-    :returns: array of sampled coordinate indices
+    :returns: relevant sketching matrix
     """
     global S
 
@@ -22,7 +22,7 @@ def random_sample(n,p,init=False,step=False):
         return
 
     if p == n: # return full block
-        return np.arange(n)
+        return np.eye(n)
 
     if step: # adaptively increase block size
         rem_inds = np.setdiff1d(np.arange(n),S)
@@ -31,9 +31,11 @@ def random_sample(n,p,init=False,step=False):
     else: # fixed block size
         S = np.random.choice(np.arange(n),size=p,replace=False)
 
-    return S
+    U_S = np.zeros((n,len(S)))
+    U_S[S,range(len(S))] = np.ones(len(S))
+    return U_S
 
-def gauss_southwell(n,p,gradfx,init=False,step=False):
+def gauss_southwell_coordinate(n,p,gradfx,init=False,step=False):
     """
     Return coordinate block of p largest gradient entries
 
@@ -41,7 +43,7 @@ def gauss_southwell(n,p,gradfx,init=False,step=False):
     :param p: block size
     :param gradfx: gradient of objective at x
     :param step: adaptively increase block size
-    :returns: array of sampled coordinate indices
+    :returns: relevant sketching matrix
     """
     global S
 
@@ -49,7 +51,7 @@ def gauss_southwell(n,p,gradfx,init=False,step=False):
         return
 
     if p == n: # return full block
-        return np.arange(n)
+        return np.eye(n)
 
     # Evaluate and sort full gradient
     sorted_nginds = np.argsort(np.fabs(gradfx))[::-1]
@@ -59,9 +61,11 @@ def gauss_southwell(n,p,gradfx,init=False,step=False):
     else: # fixed block size
         S = sorted_nginds[0:p]
 
-    return S
+    U_S = np.zeros((n,len(S)))
+    U_S[S,range(len(S))] = np.ones(len(S))
+    return U_S
 
-def cyclic(n,p,init=False,step=False):
+def cyclic_coordinate(n,p,init=False,step=False):
     """
     Cycle through contiguous coordinate blocks of size p
 
@@ -69,7 +73,7 @@ def cyclic(n,p,init=False,step=False):
     :param p: block size
     :param init: initialize cyclic state
     :param step: adaptively increase block size
-    :returns: array of sampled coordinate indices
+    :returns: relevant sketching matrix
     """
     global S, cyclic_state
 
@@ -79,7 +83,7 @@ def cyclic(n,p,init=False,step=False):
         return
 
     if p == n: # return full block
-        return np.arange(n)
+        return np.eye(n)
 
     # sample coordinates
     i = cyclic_state % n
@@ -98,10 +102,12 @@ def cyclic(n,p,init=False,step=False):
     # update state
     cyclic_state += p
 
-    return S
+    U_S = np.zeros((n,len(S)))
+    U_S[S,range(len(S))] = np.ones(len(S))
+    return U_S
 
 # FIXME: step size p is ignored at the moment, use nearest partition size?
-def partition(n,p,init=False,step=False):
+def partition_coordinate(n,p,init=False,step=False):
     """
     Randomly sample uniform partition of size p
 
@@ -109,7 +115,7 @@ def partition(n,p,init=False,step=False):
     :param p: block size
     :param init: initialize partition
     :param step: adaptively increase block size
-    :returns: array of sampled coordinate indices
+    :returns: relevant sketching matrix
     """
     global S, block_part
 
@@ -119,7 +125,7 @@ def partition(n,p,init=False,step=False):
         return
 
     if p == n: # return full block
-        return np.arange(n)
+        return np.eye(n)
 
     if step: # adaptively increase block size
         rem_part = block_part[~np.in1d(block_part,S)]
@@ -129,5 +135,58 @@ def partition(n,p,init=False,step=False):
     else: # fixed block size
         block_ind = np.random.choice(np.arange(0,n,p))
         S = block_part[block_ind:block_ind+p]
+
+    U_S = np.zeros((n,len(S)))
+    U_S[S,range(len(S))] = np.ones(len(S))
+    return U_S
+
+def random_gaussian(n,p,init=False,step=False):
+    """
+    Sample Gaussian basis of size p at random
+
+    :param n: problem dimension
+    :param p: basis size
+    :param step: adaptively increase basis size
+    :returns: relevant sketching matrix
+    """
+    global S
+
+    if init: # no initialization required
+        return
+
+    if p == n: # return identity
+        return np.eye(n)
+
+    if step: # adaptively increase basis size
+        k = S.shape[1]
+        S = np.hstack((S*np.sqrt(k),np.random.randn(n,step)))/np.sqrt(k+step)
+    else: # fixed basis size
+        S = np.random.randn(n,p)/np.sqrt(p)
+
+    return S
+
+def random_hashing(n,p,s=3,init=False,step=False):
+    """
+    Sample hashing matrix of size p at random
+
+    :param n: problem dimension
+    :param p: basis size
+    :param step: adaptively increase basis size
+    :returns: relevant sketching matrix
+    """
+
+    if init: # no initialization required
+        return
+
+    if p == n: # return identity
+        return np.eye(n)
+
+    if step: # adaptively increase basis size
+       raise RuntimeError('Cannot grow hashing matrices!')
+    else: # fixed basis size
+        S = np.zeros((n,p))
+        for j in range(n):
+            samp = np.random.choice(np.arange(p),size=s,replace=False)
+            S[j,samp] = np.ones(s)/np.sqrt(s)
 
     return S
