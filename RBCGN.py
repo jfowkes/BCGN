@@ -38,16 +38,16 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
     while (runtype == 'metrics' and budget < grad_evals*n) or (runtype == 'plot' and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
 
         # Randomly select blocks
-        S = sampling_func(n,p)
+        S, S_scale = sampling_func(n,p)
 
         # Assemble block-reduced matrices
         if 'tr_approx' in algorithm: # sparse
-            J_S = J(x).dot(csr_matrix(S))
+            J_S = J(x).dot(csr_matrix(S*S_scale))
             J_ST = J_S.T.tocsr()
             rx = r(x)
             gradf_S = J_ST.dot(rx)
         else: # dense
-            J_S = J(x).dot(S)
+            J_S = J(x).dot(S*S_scale)
             rx = r(x)
             gradf_S = J_S.T.dot(rx)
 
@@ -72,7 +72,7 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
         elif algorithm == 'reg_approx':
             s_S = reg_approx(J_S, rx, delta)
         else: # linesearch
-            s_S, delta = line_search(f, x, S, J_S, gradf_S)
+            s_S, delta = line_search(f, x, S*S_scale, J_S, gradf_S)
 
         # Loop tolerance
         Js_S = J_S.dot(s_S)
@@ -87,15 +87,15 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
             # Increase block size
             step = min(astep,n-S.shape[1])
             #print('Increasing block size to:',S.shape[1]+step)
-            S = sampling_func(n,step,step=True)
+            S, S_scale = sampling_func(n,step,step=True)
 
             # Assemble block-reduced matrices
             if 'tr_approx' in algorithm: # sparse
-                J_S = J(x).dot(csr_matrix(S))
+                J_S = J(x).dot(csr_matrix(S*S_scale))
                 J_ST = J_S.T.tocsr()
                 gradf_S = J_ST.dot(rx)
             else: # dense
-                J_S = J(x).dot(S)
+                J_S = J(x).dot(S*S_scale)
                 gradf_S = J_S.T.dot(rx)
 
             # Set initial trust region radius
@@ -117,7 +117,7 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
             elif algorithm == 'reg_approx':
                 s_S = reg_approx(J_S, rx, delta)
             else: # linesearch
-                s_S, delta = line_search(f, x, S, J_S, gradf_S)
+                s_S, delta = line_search(f, x, S*S_scale, J_S, gradf_S)
 
             # Loop tolerance
             Js_S = J_S.dot(s_S)
@@ -141,21 +141,21 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
             if subproblem != 'fancy': # standard update
-                x, delta = tr_update(f, x, s_S, S, Delta_m, delta)
+                x, delta = tr_update(f, x, s_S, S*S_scale, Delta_m, delta)
             else: # sophisticated update
-                x, delta = tr_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
+                x, delta = tr_update_fancy(f, x, s_S, S*S_scale, gradf_S, Js_S, delta)
         elif algorithm.startswith('reg'):
             if subproblem != 'fancy': # standard update
-                x, delta = reg_update(f, x, s_S, S, Delta_m, delta)
+                x, delta = reg_update(f, x, s_S, S*S_scale, Delta_m, delta)
             else: # sophisticated update
-                x, delta = reg_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
+                x, delta = reg_update_fancy(f, x, s_S, S*S_scale, gradf_S, Js_S, delta)
         elif algorithm.startswith('creg'):
             if subproblem != 'fancy': # standard update
-                x, delta = creg_update(f, x, s_S, S, Delta_m, delta)
+                x, delta = creg_update(f, x, s_S, S*S_scale, Delta_m, delta)
             else: # sophisticated update
-                x, delta = creg_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta)
+                x, delta = creg_update_fancy(f, x, s_S, S*S_scale, gradf_S, Js_S, delta)
         else: # linesearch
-            s = S.dot(s_S)
+            s = S_scale*S.dot(s_S)
             x = x + delta*s
         k += 1
 

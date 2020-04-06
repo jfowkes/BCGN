@@ -15,7 +15,7 @@ import pycutest
 def main():
 
     # Main parameters
-    RUNTYPE = 'metrics'
+    RUNTYPE = 'plot' # 'plot' - plot runs, 'metrics' - perf. profiles
     INSTANCES = 5 # no. random runs
     ALGORITHM = 'tr' # globalisation algorithm
     SUBPROB = 'normal' # subproblem solver
@@ -49,6 +49,8 @@ def main():
         from sampling_funcs import random_gaussian as sampling_func
     elif SAMPLING == 'hashing':
         from sampling_funcs import random_hashing as sampling_func
+    elif SAMPLING == 'hashing_variant':
+        from sampling_funcs import random_hashing_variant as sampling_func
     else:
         raise ValueError('Sampling type '+SAMPLING+' unimplemented')
 

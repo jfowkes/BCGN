@@ -7,80 +7,109 @@ n = 10
 p = 2
 step = 3
 
-def test_random_sample():
-    from sampling_funcs import random_coordinate as sample
+def test_generic(sample):
+    sample(n,p,init=True)
 
-    print('Testing random sampling...')
-    print(sample(n,p,init=True))
-    print(sample(n,p))
-    print(sample(n,p))
-    print(sample(n,p,step=step))
-    print(sample(n,p))
-    print(sample(n,p,step=step))
-    print(sample(n,p,step=step))
+    S, scale = sample(n,p)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,step=step)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,step=step)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,step=step)
+    print(S), print(1/scale**2)
 
-def test_gauss_southwell():
+def test_random_coordinate():
+    from sampling_funcs import random_coordinate
+    print('\nTesting random sampling...')
+    test_generic(random_coordinate)
+
+def test_cyclic_coordinate():
+    from sampling_funcs import cyclic_coordinate
+
+    print('\nTesting cyclic...')
+    test_generic(cyclic_coordinate)
+
+def test_partition_coordinate():
+    from sampling_funcs import partition_coordinate
+
+    print('\nTesting partition...')
+    test_generic(partition_coordinate)
+
+def test_gauss_southwell_coordinate():
     from sampling_funcs import gauss_southwell_coordinate as sample
 
-    gradfx = np.random.random(n)
+    gradfx = np.arange(n)
 
-    print('Testing Gauss-Southwell...')
-    print(sample(n,p,gradfx,init=True))
-    print(sample(n,p,gradfx))
-    print(sample(n,p,gradfx))
-    print(sample(n,p,gradfx,step=step))
-    print(sample(n,p,gradfx))
-    print(sample(n,p,gradfx,step=step))
-    print(sample(n,p,gradfx,step=step))
+    print('\nTesting Gauss-Southwell...')
+    sample(n,p,gradfx,init=True)
 
-def test_cyclic():
-    from sampling_funcs import cyclic_coordinate as sample
+    S, scale = sample(n,p,gradfx)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,gradfx)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,gradfx,step=step)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,gradfx)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,gradfx,step=step)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,gradfx,step=step)
+    print(S), print(1/scale**2)
 
-    print('Testing cyclic...')
-    print(sample(n,p,init=True))
-    print(sample(n,p))
-    print(sample(n,p))
-    print(sample(n,p,step=step))
-    print(sample(n,p))
-    print(sample(n,p,step=step))
-    print(sample(n,p,step=step))
+def test_random_gaussian():
+    from sampling_funcs import random_gaussian
 
-def test_partition():
-    from sampling_funcs import partition_coordinate as sample
+    print('\nTesting Gaussian...')
+    test_generic(random_gaussian)
 
-    print('Testing partition...')
-    print(sample(n,p,init=True))
-    print(sample(n,p))
-    print(sample(n,p))
-    print(sample(n,p,step=step))
-    print(sample(n,p))
-    print(sample(n,p,step=step))
-    print(sample(n,p,step=step))
-
-def test_gaussian():
-    from sampling_funcs import random_gaussian as sample
-
-    print('Testing Gaussian...')
-    print(sample(n,p,init=True))
-    print(sample(n,p))
-    print(sample(n,p))
-    print(sample(n,p,step=step))
-    print(sample(n,p))
-    print(sample(n,p,step=step))
-    print(sample(n,p,step=step))
-
-def test_hashing():
+def test_random_hashing():
     from sampling_funcs import random_hashing as sample
     p = 5
 
-    print('Testing hashing...')
-    print(sample(n,p,init=True))
-    print(sample(n,p))
-    print(sample(n,p))
+    print('\nTesting hashing...')
+    sample(n,p,init=True)
 
-test_random_sample()
-test_gauss_southwell()
-test_cyclic()
-test_partition()
-test_gaussian()
-test_hashing()
+    print('s = 1')
+    S, scale = sample(n,p,s=1)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,s=1)
+    print(S), print(1/scale**2)
+
+    print('s = 3')
+    S, scale = sample(n,p,s=3)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,s=3)
+    print(S), print(1/scale**2)
+
+def test_random_hashing_variant():
+    from sampling_funcs import random_hashing_variant as sample
+    p = 5
+
+    print('\nTesting hashing variant...')
+    sample(n,p,init=True)
+
+    print('s = 1')
+    S, scale = sample(n,p,s=1)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,s=1)
+    print(S), print(1/scale**2)
+
+    print('s = 3')
+    S, scale = sample(n,p,s=3)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p,s=3)
+    print(S), print(1/scale**2)
+
+# run tests
+test_random_coordinate()
+test_cyclic_coordinate()
+test_partition_coordinate()
+test_gauss_southwell_coordinate()
+test_random_gaussian()
+test_random_hashing()
+test_random_hashing_variant()
