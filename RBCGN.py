@@ -10,12 +10,13 @@ from scipy.sparse import csr_matrix
 import numpy as np
 import scipy.linalg as linalg
 import math as ma
+import time
 
 def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-10, fxopt=0, runtype='plot', grad_evals=None, metrics=None, algorithm='tr', subproblem='normal'):
     n = x0.size
 
     # Full function and gradient
-    def f(z): return 0.5 * np.dot(r(z), r(z))
+    def f(z): return 0.5*np.dot(r(z),r(z))
     def gradf(z): return J(z).T.dot(r(z))
 
     if runtype == 'plot': # plotting
@@ -25,8 +26,12 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
     elif runtype == 'metrics': # metrics
         budget = 0
         tau_budget = np.full(len(metrics),np.nan)
+        tau_runtime = np.full(len(metrics),np.nan)
     else:
         raise ValueError('Uknown runtype '+runtype)
+
+    # Start timer
+    start_time = time.time()
 
     # Initialize block sampling function
     sampling_func(n,p,init=True)
@@ -165,8 +170,9 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
                 #if np.isnan(tau_budget[itau]) and np.linalg.norm(gradf(x)) <= tau*np.linalg.norm(gradf(x0)):
                 if np.isnan(tau_budget[itau]) and f(x) <= tau*f(x0): # function decrease condition as opposed to gradient
                     tau_budget[itau] = budget
+                    tau_runtime[itau] = time.time()-start_time
             if np.all(np.isfinite(tau_budget)): # Stop if all function decrease metrics satisfied
-                return tau_budget
+                return tau_budget, tau_runtime
         else: # plotting
             plot_data[0,k] = f(x)-fxopt
             plot_data[1,k] = linalg.norm(gradf(x))
@@ -177,7 +183,7 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
 
     # Return function decrease metrics (some unsatisfied)
     if runtype == 'metrics':
-        return tau_budget
+        return tau_budget, tau_runtime
     else: # else return plot data
         return plot_data
 

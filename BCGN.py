@@ -5,7 +5,6 @@ from scipy.sparse import csr_matrix
 import numpy as np
 import pandas as pd
 import warnings
-import time
 import os
 import sys
 sys.path.append('../pycutest/')
@@ -15,18 +14,18 @@ import pycutest
 def main():
 
     # Main parameters
-    RUNTYPE = 'plot' # 'plot' - plot runs, 'metrics' - perf. profiles
-    INSTANCES = 5 # no. random runs
+    RUNTYPE = 'metrics' # 'plot' - plot runs, 'metrics' - perf. profiles
+    INSTANCES = 100 # no. random runs
     ALGORITHM = 'tr' # globalisation algorithm
     SUBPROB = 'normal' # subproblem solver
     SAMPLING = 'coordinate' # type of sampling
-    kappas = [1, 0.7] # 1 - block GN, (0,1) - adaptive GN
-    bsizes = [0.05, 0.25, 0.5, 0.75, 1] # fraction of full block size
+    kappas = [1] # 1 - block GN, (0,1) - adaptive GN
+    bsizes = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1] # fraction of full block size
     ASTEP = 5 # adaptive BCGN step size
 
     # Runtype 'metrics'
     GRAD_EVALS = 50 # no. full gradient evaluations
-    METRICS = [1e-1, 1e-3] # function decrease metrics
+    METRICS = [1e-1, 1e-3, 1e-5] # function decrease metrics
 
     # Runtype 'plot'
     PLOT_TYPE = 'all' # 'all' - plot all runs, 'avg' - plot run average
@@ -35,10 +34,10 @@ def main():
     SAVEFIG = False # save plot figures
 
     # Test functions
-    # from problems.cutest32_zero import funcs, args, fxopts
-    funcs = ['BROWNALE', 'HYDCAR20', 'YATP1NE', 'YATP2SQ']
-    args = [{'N':100}, None, {'N':10}, {'N':10}]
-    fxopts = 4*[0]
+    from problems.cutest32_zero import funcs, args, fxopts
+    #funcs = ['BROWNALE', 'HYDCAR20', 'YATP1NE', 'YATP2SQ']
+    #args = [{'N':100}, None, {'N':10}, {'N':10}]
+    #fxopts = 4*[0]
 
     # Set sampling function
     if SAMPLING == 'coordinate':
@@ -61,7 +60,8 @@ def main():
         from matplotlib.lines import Line2D
         markers = ['o','v','^','<','>','s','p','P','H','D']
     else: # set up storage
-        measures = np.full((len(funcs)*INSTANCES,len(kappas)*len(bsizes),len(METRICS)),np.nan)
+        budgets = np.full((len(funcs)*INSTANCES,len(kappas)*len(bsizes),len(METRICS)),np.nan)
+        runtimes = np.full((len(funcs)*INSTANCES,len(kappas)*len(bsizes),len(METRICS)),np.nan)
         row_labels = [func+' Run '+str(r+1) for func in funcs for r in range(INSTANCES)]
         basename = 'BCGN-'+ALGORITHM.upper()+'-'+SUBPROB.upper()+'-'+SAMPLING.upper()#+'-'+time.strftime('%d.%m.%Y-%H:%M:%S')
     column_labels = ['GN' if b==1 else str(b)+'n-'+('BCGN' if k==1 else str(k)+'A-BCGN') for k in kappas for b in bsizes]
@@ -105,7 +105,8 @@ def main():
                     X = np.arange(IT_MAX+1)
                     Ys = np.full((3,IT_MAX+1,INSTANCES),np.nan)
                 else:
-                    tau_budget = np.full((INSTANCES,len(METRICS)),np.nan)
+                    budget = np.full((INSTANCES,len(METRICS)),np.nan)
+                    runtime = np.full((INSTANCES,len(METRICS)),np.nan)
 
                 # Set RNG seeds
                 if p == n:
@@ -123,10 +124,11 @@ def main():
                         Ys[:,:,iseed] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,
                                               it_max=IT_MAX,ftol=FTOL,fxopt=fxopt,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
                     else: # performance profiles
-                        tau_budget[iseed,:] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,
-                                                    grad_evals=GRAD_EVALS,metrics=METRICS,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
+                        budget[iseed,:], runtime[iseed,:] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,
+                                                                  grad_evals=GRAD_EVALS,metrics=METRICS,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
                         if p == n:  # GN: all runs are the same
-                            tau_budget = np.tile(tau_budget[iseed,:],(INSTANCES,1))
+                            budget = np.tile(budget[iseed,:],(INSTANCES,1))
+                            runtime = np.tile(runtime[iseed,:],(INSTANCES,1))
 
                 if RUNTYPE == 'plot': # plot each run
                     try: # truncate to last converged run
@@ -150,10 +152,13 @@ def main():
                             ax1.semilogy(X,Ys[0,:,iseed],color=col,marker=markers[iseed],markevery=10)
                             ax2.semilogy(X,Ys[1,:,iseed],color=col,marker=markers[iseed],markevery=10)
                 else: # save performance profiles
-                    measures[ifunc*INSTANCES:(ifunc+1)*INSTANCES,ikappa*len(bsizes)+ip,:] = tau_budget
+                    budgets[ifunc*INSTANCES:(ifunc+1)*INSTANCES,ikappa*len(bsizes)+ip,:] = budget
+                    runtimes[ifunc*INSTANCES:(ifunc+1)*INSTANCES,ikappa*len(bsizes)+ip,:] = runtime
                     for im, m in enumerate(METRICS):
-                        df = pd.DataFrame(data=measures[:,:,im],index=row_labels,columns=column_labels)
-                        df.to_pickle(basename+'_'+'{:.0e}'.format(m)+'.measure')
+                        dfb = pd.DataFrame(data=budgets[:,:,im],index=row_labels,columns=column_labels)
+                        dfb.to_pickle(basename+'_'+'{:.0e}'.format(m)+'.budget')
+                        dfr = pd.DataFrame(data=runtimes[:,:,im],index=row_labels,columns=column_labels)
+                        dfr.to_pickle(basename+'_'+'{:.0e}'.format(m)+'.runtime')
                     dfd = pd.DataFrame(data=dimen[np.newaxis,:],index=['n'],columns=funcs)
                     dfd.to_pickle(basename+'.dimen')
 
