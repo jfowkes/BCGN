@@ -16,6 +16,7 @@ def main():
     # Main parameters
     RUNTYPE = 'metrics' # 'plot' - plot runs, 'metrics' - perf. profiles
     INSTANCES = 100 # no. random runs
+    IT_MAX = 5000  # max iterations
     ALGORITHM = 'tr' # globalisation algorithm
     SUBPROB = 'normal' # subproblem solver
     SAMPLING = 'coordinate' # type of sampling
@@ -29,7 +30,6 @@ def main():
 
     # Runtype 'plot'
     PLOT_TYPE = 'all' # 'all' - plot all runs, 'avg' - plot run average
-    IT_MAX = 100 # max iterations
     FTOL = 1e-10 # tolerance
     SAVEFIG = False # save plot figures
 
@@ -121,10 +121,10 @@ def main():
 
                     # Run RBCGN
                     if RUNTYPE == 'plot': # Plotting
-                        Ys[:,:,iseed] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,
-                                              it_max=IT_MAX,ftol=FTOL,fxopt=fxopt,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
+                        Ys[:,:,iseed] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,it_max=IT_MAX,
+                                              ftol=FTOL,fxopt=fxopt,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
                     else: # performance profiles
-                        budget[iseed,:], runtime[iseed,:] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,
+                        budget[iseed,:], runtime[iseed,:] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,it_max=IT_MAX,
                                                                   grad_evals=GRAD_EVALS,metrics=METRICS,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
                         if p == n:  # GN: all runs are the same
                             budget = np.tile(budget[iseed,:],(INSTANCES,1))
