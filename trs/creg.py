@@ -2,7 +2,6 @@
 from __future__ import absolute_import, division, unicode_literals, print_function
 import numpy as np
 import scipy.linalg as linalg
-from scipy.sparse.linalg import eigsh
 import math as ma
 import warnings
 
@@ -146,7 +145,7 @@ def creg(J_S, gradf_S, sigma):
 
         # Hard case: find eigenvector of zero eigenvalue
         if ns_S < lamda/sigma:
-            _, u_S = eigsh(R_S.T.dot(R_S), k=1, which='SM') # since R_S'R_S = J_S'J_S + lamda*I
+            _, u_S = linalg.eigh(R_S.T.dot(R_S),eigvals=(0,0)) # since R_S'R_S = J_S'J_S + lamda*I
             u_S = u_S[:,0] # flatten array
             alpha1, alpha2 = quadeq(np.dot(u_S,u_S), 2*np.dot(s_S,u_S), np.dot(s_S,s_S)-(lamda/sigma)**2) # Find quadratic roots
             return modelmin(s_S+alpha1*u_S, s_S+alpha2*u_S, J_S, gradf_S, sigma)  # Find step that makes creg model smallest
