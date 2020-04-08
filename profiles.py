@@ -5,32 +5,34 @@ import numpy as np
 import pandas as pd
 import os
 
-# Dataset name and tolerance
-basename = 'BCGN-TR-NORMAL-COORDINATE'
-tol = '1e-01'
+# Dataset name and tolerance(s)
+basename = 'BCGN-TR-NORMAL-HASHING'
+tols = ['1e-01','1e-03','1e-05']
 
 def main():
 
-    # Load data
-    budget = pd.read_pickle(basename+'_'+tol+'.budget')
-    print(budget)
-    runtime = pd.read_pickle(basename+'_'+tol+'.runtime')
-    print(runtime)
+    for tol in tols:
 
-    #dimen = pd.read_pickle(basename+'.dimen')
-    #print(dimen)
-    #num_runs = budget.shape[0]/dimen.shape[1]
-    #dimen = np.repeat(dimen.to_numpy(),num_runs)
+        # Load data
+        budget = pd.read_pickle(basename+'_'+tol+'.budget')
+        print(budget)
+        runtime = pd.read_pickle(basename+'_'+tol+'.runtime')
+        print(runtime)
 
-    # Plot and save performance, budget and grad. eval. profiles
-    fig_name = basename+'-'+tol
-    performance_profile(budget,'Coordinate Evals Performance Profile',fig_name+'_coordevals','prof/')
-    performance_profile(runtime,'Runtime Performance Profile',fig_name+'_runtime','prof/')
-    #budget_profile(budget,np.array(dimen),fig_title,fig_name,'prof/')
-    #grad_evals(budget,np.array(dimen),fig_title,fig_name,'evals/')
+        #dimen = pd.read_pickle(basename+'.dimen')
+        #print(dimen)
+        #num_runs = budget.shape[0]/dimen.shape[1]
+        #dimen = np.repeat(dimen.to_numpy(),num_runs)
+
+        # Plot and save performance, budget and grad. eval. profiles
+        fig_name = basename+'-'+tol
+        performance_profile(budget,'Coordinate Evals Performance Profile',fig_name+'_coordevals','prof/')
+        performance_profile(runtime,'Runtime Performance Profile',fig_name+'_runtime','prof/')
+        #budget_profile(budget,np.array(dimen),fig_title,fig_name,'prof/')
+        #grad_evals(budget,np.array(dimen),fig_title,fig_name,'evals/')
 
 """ Calculate and Plot Performance Profile """
-def performance_profile(measure, fig_title, fig_name, save_dir):
+def performance_profile(measure, fig_title, fig_name, save_dir, tmax=50):
     """
     :param measure: prob x solver DataFrame,
      smallest values assumed to be the best
@@ -42,7 +44,7 @@ def performance_profile(measure, fig_title, fig_name, save_dir):
     ratio = np.zeros((pn,sn))
     for p in range(pn):
         for s in range(sn):
-            ratio[p,s] = measure.iloc[p,s] / np.nanmin(measure.iloc[p,:])
+            ratio[p,s] = measure.iloc[p,s] / np.min(measure.iloc[p,:])
 
     def profile(s,t):
         prob = 0
@@ -51,7 +53,7 @@ def performance_profile(measure, fig_title, fig_name, save_dir):
                 prob += 1
         return prob / pn
 
-    t = np.linspace(1,50)
+    t = np.linspace(1,tmax)
     prof = np.vectorize(profile)
     plt.figure(100)
     plt.clf()
@@ -71,7 +73,7 @@ def performance_profile(measure, fig_title, fig_name, save_dir):
 
 
 """ Calculate and Plot Budget Profile """
-def budget_profile(measure, dimen, fig_title, fig_name, save_dir):
+def budget_profile(measure, dimen, fig_title, fig_name, save_dir, bmax=50):
     """
     :param measure: prob x solver array,
      smallest values assumed to be the best
@@ -93,7 +95,7 @@ def budget_profile(measure, dimen, fig_title, fig_name, save_dir):
                 prob += 1
         return prob / pn
 
-    m = np.linspace(0,50)
+    m = np.linspace(0,bmax)
     prof = np.vectorize(profile)
     plt.figure(100)
     plt.clf()
@@ -124,7 +126,7 @@ def grad_evals(measure, dimen, fig_title, fig_name, save_dir):
 
     # Scale by dimension to get gradient evals
     for p in range(pn):
-        measure.iloc[p,:] = measure.iloc[p,:] / dimen[p]
+        measure.iloc[p,:] /= dimen[p]
 
     plt.figure(100)
     plt.clf()
