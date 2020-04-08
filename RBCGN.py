@@ -25,8 +25,8 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=1000, ftol=1e-
         plot_data[1,0] = linalg.norm(gradf(x0))
     elif runtype == 'metrics': # metrics
         budget = 0
-        tau_budget = np.full(len(metrics),np.nan)
-        tau_runtime = np.full(len(metrics),np.nan)
+        tau_budget = np.full(len(metrics),np.inf)
+        tau_runtime = np.full(len(metrics),np.inf)
     else:
         raise ValueError('Uknown runtype '+runtype)
 
@@ -167,8 +167,8 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=1000, ftol=1e-
         # function decrease metrics
         if runtype == 'metrics':
             for itau, tau in enumerate(metrics):
-                #if np.isnan(tau_budget[itau]) and np.linalg.norm(gradf(x)) <= tau*np.linalg.norm(gradf(x0)):
-                if np.isnan(tau_budget[itau]) and f(x) <= tau*f(x0): # function decrease condition as opposed to gradient
+                #if np.isinf(tau_budget[itau]) and np.linalg.norm(gradf(x)) <= tau*np.linalg.norm(gradf(x0)):
+                if np.isinf(tau_budget[itau]) and f(x) <= fxopt + tau*(f(x0)-fxopt): # function decrease condition as opposed to gradient
                     tau_budget[itau] = budget
                     tau_runtime[itau] = time.time()-start_time
             if np.all(np.isfinite(tau_budget)): # Stop if all function decrease metrics satisfied

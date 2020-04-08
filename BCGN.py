@@ -60,12 +60,12 @@ def main():
         from matplotlib.lines import Line2D
         markers = ['o','v','^','<','>','s','p','P','H','D']
     else: # set up storage
-        budgets = np.full((len(funcs)*INSTANCES,len(kappas)*len(bsizes),len(METRICS)),np.nan)
-        runtimes = np.full((len(funcs)*INSTANCES,len(kappas)*len(bsizes),len(METRICS)),np.nan)
+        budgets = np.zeros((len(funcs)*INSTANCES,len(kappas)*len(bsizes),len(METRICS)))
+        runtimes = np.zeros((len(funcs)*INSTANCES,len(kappas)*len(bsizes),len(METRICS)))
         row_labels = [func+' Run '+str(r+1) for func in funcs for r in range(INSTANCES)]
         basename = 'BCGN-'+ALGORITHM.upper()+'-'+SUBPROB.upper()+'-'+SAMPLING.upper()#+'-'+time.strftime('%d.%m.%Y-%H:%M:%S')
     column_labels = ['GN' if b==1 else str(b)+'n-'+('BCGN' if k==1 else str(k)+'A-BCGN') for k in kappas for b in bsizes]
-    dimen = np.full(len(funcs),np.nan)
+    dimen = np.zeros(len(funcs))
 
     # Loop over test functions
     for ifunc, func in enumerate(funcs):
@@ -95,18 +95,18 @@ def main():
                     legend_lines = []
 
             # For each block size
-            blocks = [int(round(n*b)) for b in bsizes]
+            blocks = [int(n*b+0.5) for b in bsizes]
             for ip, p in enumerate(blocks):
                 print('\n======',column_labels[ikappa*len(bsizes)+ip],'======')
 
                 # Set up storage
                 if RUNTYPE == 'plot':
-                    legend += ['Block Size ' + str(p)]
+                    legend += ['Block Size '+str(p)]
                     X = np.arange(IT_MAX+1)
-                    Ys = np.full((3,IT_MAX+1,INSTANCES),np.nan)
+                    Ys = np.zeros((3,IT_MAX+1,INSTANCES))
                 else:
-                    budget = np.full((INSTANCES,len(METRICS)),np.nan)
-                    runtime = np.full((INSTANCES,len(METRICS)),np.nan)
+                    budget = np.zeros((INSTANCES,len(METRICS)))
+                    runtime = np.zeros((INSTANCES,len(METRICS)))
 
                 # Set RNG seeds
                 if p == n:
@@ -121,10 +121,10 @@ def main():
 
                     # Run RBCGN
                     if RUNTYPE == 'plot': # Plotting
-                        Ys[:,:,iseed] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,it_max=IT_MAX,
-                                              ftol=FTOL,fxopt=fxopt,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
+                        Ys[:,:,iseed] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,it_max=IT_MAX,fxopt=fxopt,
+                                              ftol=FTOL,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
                     else: # performance profiles
-                        budget[iseed,:], runtime[iseed,:] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,it_max=IT_MAX,
+                        budget[iseed,:], runtime[iseed,:] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,it_max=IT_MAX,fxopt=fxopt,
                                                                   grad_evals=GRAD_EVALS,metrics=METRICS,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
                         if p == n:  # GN: all runs are the same
                             budget = np.tile(budget[iseed,:],(INSTANCES,1))
