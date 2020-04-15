@@ -12,7 +12,7 @@ import scipy.linalg as linalg
 import math as ma
 import time
 
-def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=1000, ftol=1e-10, fxopt=0, runtype='plot', grad_evals=None, metrics=None, algorithm='tr', subproblem='normal'):
+def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-10, fxopt=0, runtype='plot', grad_evals=None, metrics=None, algorithm='tr', subproblem='normal'):
     n = x0.size
 
     # Full function and gradient
@@ -40,7 +40,7 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=1000, ftol=1e-
     x = x0
     delta = None
     x_prev = None
-    while (runtype == 'metrics' and k < it_max and budget < grad_evals*n) or (runtype == 'plot' and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
+    while (runtype == 'metrics' and budget < grad_evals*n) or (runtype == 'plot' and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
 
         # Randomly select blocks
         S, S_scale = sampling_func(n,p)
