@@ -122,7 +122,7 @@ def main():
                     # Run RBCGN
                     if RUNTYPE == 'plot': # Plotting
                         Ys[:,:,iseed] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,fxopt=fxopt,
-                                              it_max=IT_MAX,ftol=FTOL,fxopt=fxopt,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
+                                              it_max=IT_MAX,ftol=FTOL,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
                     else: # performance profiles
                         budget[iseed,:], runtime[iseed,:] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,fxopt=fxopt,
                                                                   grad_evals=GRAD_EVALS,metrics=METRICS,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)

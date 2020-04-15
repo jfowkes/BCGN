@@ -25,6 +25,8 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
         plot_data[1,0] = linalg.norm(gradf(x0))
     elif runtype == 'metrics': # metrics
         budget = 0
+        fail_count = 0
+        x_prev = None
         tau_budget = np.full(len(metrics),np.inf)
         tau_runtime = np.full(len(metrics),np.inf)
     else:
@@ -39,8 +41,7 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
     k = 0
     x = x0
     delta = None
-    x_prev = None
-    while (runtype == 'metrics' and budget < grad_evals*n) or (runtype == 'plot' and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
+    while (runtype == 'metrics' and budget < grad_evals*n and fail_count < 100) or (runtype == 'plot' and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
 
         # Randomly select blocks
         S, S_scale = sampling_func(n,p)
@@ -136,9 +137,11 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
             if np.any(x != x_prev): # we are at new location
                 budget += S.shape[1]
                 S_prev = S
+                fail_count = 0
             else: # x == x_prev so don't count already evaluated coords/columns
                 budget += len(set(map(tuple,S.T)) - set(map(tuple,S_prev.T))) # column difference
                 S_prev = np.array(list(set(map(tuple,S_prev.T)) | set(map(tuple,S.T)))).T # column union
+                fail_count += 1
             # print('Iteration:', k, 'max block size:', S.shape[1])
             x_prev = x
 
