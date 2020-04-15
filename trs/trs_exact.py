@@ -117,7 +117,7 @@ def trs(J_S, gradf_S, delta):
         # Else trust region active
 
     # Trust region active: newton iteration
-    k = 1
+    k = 0
     lamda0 = lamda
     while ma.fabs(ns_S - delta) > KE * delta:
 
@@ -126,8 +126,8 @@ def trs(J_S, gradf_S, delta):
         nw_S = linalg.norm(w_S)
         lamda += (ns_S - delta)/delta * (ns_S/nw_S)**2
 
-        # Handle underflow in newton iteration: return suboptimal step
-        if lamda < 0:
+        # Handle issues in newton iteration: return suboptimal step
+        if lamda < 0 or k == 30:
             return s_S
 
         # Solve *perturbed* normal equations to find search direction
@@ -139,7 +139,6 @@ def trs(J_S, gradf_S, delta):
         # Handle cycling in newton iteration: restart with shifted lambda
         if k == 15:
             lamda = lamda0 + 1e-10
-            k = 0
         k += 1
 
     return s_S

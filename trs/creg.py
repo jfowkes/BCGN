@@ -152,8 +152,8 @@ def creg(J_S, gradf_S, sigma):
         # Else newton iteration
 
     # Newton iteration for secular equation 1/ns_S = sigma/lamda
-    k = 1
-    #lamda0 = lamda
+    k = 0
+    lamda0 = lamda
     while ma.fabs(ns_S - lamda/sigma) > KE * (lamda/sigma):
 
         # Solve R'w = s and calculate new lamda
@@ -163,7 +163,7 @@ def creg(J_S, gradf_S, sigma):
         lamda += quadeq_pos(nw_S**2/ns_S**3, 1/ns_S+lamda*nw_S**2/ns_S**3, lamda/ns_S-sigma) # only linearise 1/ns_S
 
         # Handle issues in newton iteration: return suboptimal step
-        if lamda < 0 or k == 15:
+        if lamda < 0 or k == 30:
             return s_S, sigma
 
         # Solve *perturbed* normal equations to find search direction
@@ -173,9 +173,8 @@ def creg(J_S, gradf_S, sigma):
         ns_S = linalg.norm(s_S)
 
         # Handle cycling in newton iteration: restart with shifted lambda
-        #if k == 100:
-        #    lamda = lamda0 + 1e-10
-        #    k = 0
+        if k == 15:
+            lamda = lamda0 + 1e-10
         k += 1
 
     return s_S, sigma
