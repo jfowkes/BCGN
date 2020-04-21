@@ -39,20 +39,6 @@ def main():
     #args = [{'N':100}, None, {'N':10}, {'N':10}]
     #fxopts = 4*[0]
 
-    # Set sampling function
-    if SAMPLING == 'coordinate':
-        from sampling_funcs import random_coordinate as sampling_func
-    elif SAMPLING == 'cyclic':
-        from sampling_funcs import cyclic_coordinate as sampling_func
-    elif SAMPLING == 'gaussian':
-        from sampling_funcs import random_gaussian as sampling_func
-    elif SAMPLING == 'hashing':
-        from sampling_funcs import random_hashing as sampling_func
-    elif SAMPLING == 'hashing_variant':
-        from sampling_funcs import random_hashing_variant as sampling_func
-    else:
-        raise ValueError('Sampling type '+SAMPLING+' unimplemented')
-
     # Set up plotting / storage
     if RUNTYPE == 'plot': # set up plotting
         import matplotlib.pyplot as plt
@@ -121,10 +107,10 @@ def main():
 
                     # Run RBCGN
                     if RUNTYPE == 'plot': # Plotting
-                        Ys[:,:,iseed] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,fxopt=fxopt,
+                        Ys[:,:,iseed] = RBCGN(r,J,x0,p,sampling=SAMPLING,kappa=kappa,astep=ASTEP,fxopt=fxopt,
                                               it_max=IT_MAX,ftol=FTOL,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
                     else: # performance profiles
-                        budget[iseed,:], runtime[iseed,:] = RBCGN(r,J,x0,sampling_func,p,kappa=kappa,astep=ASTEP,fxopt=fxopt,
+                        budget[iseed,:], runtime[iseed,:] = RBCGN(r,J,x0,p,sampling=SAMPLING,kappa=kappa,astep=ASTEP,fxopt=fxopt,
                                                                   grad_evals=GRAD_EVALS,metrics=METRICS,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
                         if p == n:  # GN: all runs are the same
                             budget = np.tile(budget[iseed,:],(INSTANCES,1))

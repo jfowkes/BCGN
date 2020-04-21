@@ -42,23 +42,31 @@ def test_partition_coordinate():
 
 def test_gauss_southwell_coordinate():
     from sampling_funcs import gauss_southwell_coordinate as sample
-
-    gradfx = np.arange(n)
+    from sampling_funcs import gauss_southwell_update_gradient
 
     print('\nTesting Gauss-Southwell...')
-    sample(n,p,gradfx,init=True)
+    sample(n,p,init=True)
 
-    S, scale = sample(n,p,gradfx)
+    # gradient 1
+    gradf = np.arange(n)
+    gauss_southwell_update_gradient(gradf)
+
+    S, scale = sample(n,p)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,gradfx)
+    S, scale = sample(n,p)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,gradfx,step=step)
+    S, scale = sample(n,p,step=step)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,gradfx)
+
+    # gradient 2
+    gradf = -1*np.arange(n)
+    gauss_southwell_update_gradient(gradf)
+
+    S, scale = sample(n,p)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,gradfx,step=step)
+    S, scale = sample(n,p,step=step)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,gradfx,step=step)
+    S, scale = sample(n,p,step=step)
     print(S), print(1/scale**2)
 
 def test_random_gaussian():
@@ -105,6 +113,30 @@ def test_random_hashing_variant():
     S, scale = sample(n,p,s=3)
     print(S), print(1/scale**2)
 
+def test_thompson_coordinate():
+    from sampling_funcs import thompson_coordinate as sample
+    from sampling_funcs import thompson_update_gradient
+
+    print('\nTesting Thompson...')
+    sample(n,p,init=True)
+
+    # gradient 1
+    gradf = np.ones(n)
+    thompson_update_gradient(gradf)
+
+    S, scale = sample(n,p)
+    print(S), print(1/scale**2)
+    S, scale = sample(n,p)
+    print(S), print(1/scale**2)
+
+    # gradient 2
+    gradf = -1*np.ones(n)
+    thompson_update_gradient(gradf)
+
+    S, scale = sample(n,p)
+    print(S), print(1/scale**2)
+
+
 # run tests
 test_random_coordinate()
 test_cyclic_coordinate()
@@ -113,3 +145,4 @@ test_gauss_southwell_coordinate()
 test_random_gaussian()
 test_random_hashing()
 test_random_hashing_variant()
+test_thompson_coordinate()

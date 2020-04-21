@@ -12,7 +12,7 @@ import scipy.linalg as linalg
 import math as ma
 import time
 
-def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-10, fxopt=0, runtype='plot', grad_evals=None, metrics=None, algorithm='tr', subproblem='normal'):
+def RBCGN(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, it_max=100, ftol=1e-10, fxopt=0, runtype='plot', grad_evals=None, metrics=None, algorithm='tr', subproblem='normal'):
     n = x0.size
 
     # Full function and gradient
@@ -32,6 +32,26 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
     else:
         raise ValueError('Uknown runtype '+runtype)
 
+    # Set sampling function
+    if sampling == 'coordinate':
+        from sampling_funcs import random_coordinate as sampling_func
+    elif sampling == 'cyclic':
+        from sampling_funcs import cyclic_coordinate as sampling_func
+    elif sampling == 'gaussian':
+        from sampling_funcs import random_gaussian as sampling_func
+    elif sampling == 'hashing':
+        from sampling_funcs import random_hashing as sampling_func
+    elif sampling == 'hashing_variant':
+        from sampling_funcs import random_hashing_variant as sampling_func
+    elif sampling == 'gauss_southwell':
+        from sampling_funcs import gauss_southwell_coordinate as sampling_func
+        from sampling_funcs import gauss_southwell_update_gradient as update_grad
+    elif sampling == 'thompson':
+        from sampling_funcs import thompson_coordinate as sampling_func
+        from sampling_funcs import thompson_update_gradient as update_grad
+    else:
+        raise ValueError('Sampling type ' + sampling + ' unimplemented')
+
     # Start timer
     start_time = time.time()
 
@@ -42,6 +62,12 @@ def RBCGN(r, J, x0, sampling_func, p, kappa=1, astep=None, it_max=100, ftol=1e-1
     x = x0
     delta = None
     while (runtype == 'metrics' and budget < grad_evals*n and fail_count < 100) or (runtype == 'plot' and k < it_max and ma.fabs(f(x) - fxopt) > ftol):
+
+        # Update gradient (for Gauss-Southwell and Thompson)
+        if sampling == 'gauss_southwell':
+            update_grad(gradf(x))
+        elif sampling == 'thompson':
+            update_grad(gradf(x)/f(x))
 
         # Randomly select blocks
         S, S_scale = sampling_func(n,p)

@@ -6,7 +6,7 @@ import pandas as pd
 import os
 
 # Dataset name and tolerance(s)
-basename = 'BCGN-TR-NORMAL-HASHING'
+basename = 'BCGN-TR-NORMAL-COORDINATE'
 tols = ['1e-01','1e-03','1e-05']
 
 def main():
