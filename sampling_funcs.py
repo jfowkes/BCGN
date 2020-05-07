@@ -1,5 +1,6 @@
 """ Sampling Functions """
 from __future__ import absolute_import, division, unicode_literals, print_function
+from scipy.sparse import csr_matrix
 import numpy as np
 
 def random_coordinate(n,p,init=False,step=False):
@@ -177,6 +178,7 @@ def random_gaussian(n,p,init=False,step=False):
     scale = 1./np.sqrt(S.shape[1])
     return S, scale
 
+# FIXME: use sparse hashing matrix directly
 def random_hashing(n,p,s=3,init=False,step=False):
     """
     Sample hashing matrix of size p at random
@@ -196,15 +198,17 @@ def random_hashing(n,p,s=3,init=False,step=False):
     if step: # adaptively increase basis size
        raise RuntimeError('Cannot grow hashing matrices!')
     else: # fixed basis size
-        S = np.zeros((n,p))
+        indices = np.zeros(s*n)
         for j in range(n):
-            samp = np.random.choice(np.arange(p),size=s,replace=False)
-            sign = np.random.choice([-1,1],size=s,replace=True)
-            S[j,samp] = sign*np.ones(s)
+            indices[s*j:s*j+s] = np.random.permutation(p)[:s] # sample without replacement
+        indptr = s*np.arange(n+1)
+        data = np.random.binomial(1,0.5,size=s*n)*2-1
+        S = csr_matrix((data,indices,indptr),shape=(n,p)).toarray()
 
     scale = 1./np.sqrt(s)
     return S, scale
 
+# FIXME: use sparse hashing matrix directly
 def random_hashing_variant(n,p,s=3,init=False,step=False):
     """
     Sample variant hashing matrix of size p at random
@@ -224,11 +228,10 @@ def random_hashing_variant(n,p,s=3,init=False,step=False):
     if step:  # adaptively increase basis size
         raise RuntimeError('Cannot grow hashing matrices!')
     else:  # fixed basis size
-        S = np.zeros((n,p))
-        for j in range(n):
-            samp = np.random.choice(np.arange(p),size=s,replace=True) # with replacement
-            sign = np.random.choice([-1,1],size=s,replace=True)
-            S[j,samp] += sign*np.ones(s) # add to S
+        indices = np.random.randint(p,size=s*n) # sample with replacement
+        indptr = s*np.arange(n+1)
+        data = np.random.binomial(1,0.5,size=s*n)*2-1
+        S = csr_matrix((data,indices,indptr),shape=(n,p)).toarray()
 
     scale = 1./np.sqrt(s)
     return S, scale
