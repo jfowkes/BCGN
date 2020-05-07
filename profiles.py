@@ -5,31 +5,33 @@ import numpy as np
 import pandas as pd
 import os
 
-# Dataset name and tolerance(s)
-basename = 'BCGN-TR-NORMAL-COORDINATE'
+# Dataset name(s) and tolerance(s)
+basenames = ['BCGN-TR-NORMAL-' + s for s in ('COORDINATE','GAUSSIAN','GAUSS_SOUTHWELL')]
 tols = ['1e-01','1e-03','1e-05']
 
 def main():
 
-    for tol in tols:
+    for basename in basenames:
 
-        # Load data
-        budget = pd.read_pickle(basename+'_'+tol+'.budget')
-        print(budget)
-        runtime = pd.read_pickle(basename+'_'+tol+'.runtime')
-        print(runtime)
+        for tol in tols:
 
-        #dimen = pd.read_pickle(basename+'.dimen')
-        #print(dimen)
-        #num_runs = budget.shape[0]/dimen.shape[1]
-        #dimen = np.repeat(dimen.to_numpy(),num_runs)
+            # Load data
+            budget = pd.read_pickle(basename+'_'+tol+'.budget')
+            print(budget)
+            runtime = pd.read_pickle(basename+'_'+tol+'.runtime')
+            print(runtime)
 
-        # Plot and save performance, budget and grad. eval. profiles
-        fig_name = basename+'-'+tol
-        performance_profile(budget,'Coordinate Evals Performance Profile',fig_name+'_coordevals','prof/')
-        performance_profile(runtime,'Runtime Performance Profile',fig_name+'_runtime','prof/')
-        #budget_profile(budget,np.array(dimen),fig_title,fig_name,'prof/')
-        #grad_evals(budget,np.array(dimen),fig_title,fig_name,'evals/')
+            #dimen = pd.read_pickle(basename+'.dimen')
+            #print(dimen)
+            #num_runs = budget.shape[0]/dimen.shape[1]
+            #dimen = np.repeat(dimen.to_numpy(),num_runs)
+
+            # Plot and save performance, budget and grad. eval. profiles
+            fig_name = basename+'-'+tol
+            performance_profile(budget,'Coordinate Evals Performance Profile',fig_name+'_coordevals','prof/')
+            performance_profile(runtime,'Runtime Performance Profile',fig_name+'_runtime','prof/')
+            #budget_profile(budget,np.array(dimen),fig_title,fig_name,'prof/')
+            #grad_evals(budget,np.array(dimen),fig_title,fig_name,'evals/')
 
 """ Calculate and Plot Performance Profile """
 def performance_profile(measure, fig_title, fig_name, save_dir, tmax=50):
