@@ -1,9 +1,34 @@
 """ Sampling Functions """
 from __future__ import absolute_import, division, unicode_literals, print_function
-from scipy.sparse import csr_matrix
 import numpy as np
+import scipy.sparse as sp
 
-def random_coordinate(n,p,init=False,step=False):
+def identity_matrix(n,sparse):
+    """
+    Construct (sparse) identity matrix
+
+    :param n: problem dimension
+    :returns: (sparse) identity matrix
+    """
+    return sp.identity(n,format='csr') if sparse else np.eye(n)
+
+def coordinate_matrix(n,S,sparse):
+    """
+    Construct (sparse) sketching matrix from given coordinates
+
+    :param n: problem dimension
+    :param S: given coordinates
+    :returns: (sparse) sketching matrix
+    """
+    if not sparse:
+        U_S = np.zeros((n,len(S)))
+        U_S[S,range(len(S))] = np.ones(len(S))
+    else:
+        U_S = sp.csr_matrix((np.ones(len(S)),(S,range(len(S)))),shape=(n,len(S)))
+    return U_S
+
+
+def random_coordinate(n,p,init=False,step=False,sparse=False):
     """
     Sample coordinate block of size p at random from n
 
@@ -19,7 +44,7 @@ def random_coordinate(n,p,init=False,step=False):
         return
 
     if p == n: # return full block
-        return np.eye(n), 1
+        return identity_matrix(n,sparse), 1
 
     if step: # adaptively increase block size
         rem_inds = np.setdiff1d(np.arange(n),S)
@@ -28,8 +53,7 @@ def random_coordinate(n,p,init=False,step=False):
     else: # fixed block size
         S = np.random.choice(np.arange(n),size=p,replace=False)
 
-    U_S = np.zeros((n,len(S)))
-    U_S[S,range(len(S))] = np.ones(len(S))
+    U_S = coordinate_matrix(n,S,sparse)
     scale = 1./np.sqrt(n/len(S))
     return U_S, scale
 
@@ -41,7 +65,7 @@ def gauss_southwell_update_gradient(gradient):
 
     gradf = gradient
 
-def gauss_southwell_coordinate(n,p,init=False,step=False):
+def gauss_southwell_coordinate(n,p,init=False,step=False,sparse=False):
     """
     Return coordinate block of p largest gradient entries
 
@@ -58,7 +82,7 @@ def gauss_southwell_coordinate(n,p,init=False,step=False):
         return
 
     if p == n: # return full block
-        return np.eye(n), 1
+        return identity_matrix(n,sparse), 1
 
     # Evaluate and sort full gradient
     sorted_nginds = np.argsort(np.fabs(gradf))[::-1]
@@ -68,12 +92,11 @@ def gauss_southwell_coordinate(n,p,init=False,step=False):
     else: # fixed block size
         S = sorted_nginds[0:p]
 
-    U_S = np.zeros((n,len(S)))
-    U_S[S,range(len(S))] = np.ones(len(S))
+    U_S = coordinate_matrix(n,S,sparse)
     scale = 1./np.sqrt(n/len(S))
     return U_S, scale
 
-def cyclic_coordinate(n,p,init=False,step=False):
+def cyclic_coordinate(n,p,init=False,step=False,sparse=False):
     """
     Cycle through contiguous coordinate blocks of size p
 
@@ -92,7 +115,7 @@ def cyclic_coordinate(n,p,init=False,step=False):
         return
 
     if p == n: # return full block
-        return np.eye(n), 1
+        return identity_matrix(n,sparse), 1
 
     # sample coordinates
     i = cyclic_state % n
@@ -111,13 +134,12 @@ def cyclic_coordinate(n,p,init=False,step=False):
     # update state
     cyclic_state += p
 
-    U_S = np.zeros((n,len(S)))
-    U_S[S,range(len(S))] = np.ones(len(S))
+    U_S = coordinate_matrix(n,S,sparse)
     scale = 1./np.sqrt(n/len(S))
     return U_S, scale
 
 # FIXME: step size p is ignored at the moment, use nearest partition size?
-def partition_coordinate(n,p,init=False,step=False):
+def partition_coordinate(n,p,init=False,step=False,sparse=False):
     """
     Randomly sample uniform partition of size p
 
@@ -136,7 +158,7 @@ def partition_coordinate(n,p,init=False,step=False):
         return
 
     if p == n: # return full block
-        return np.eye(n), 1
+        return identity_matrix(n,sparse), 1
 
     if step: # adaptively increase block size
         rem_part = block_part[~np.in1d(block_part,S)]
@@ -147,12 +169,11 @@ def partition_coordinate(n,p,init=False,step=False):
         block_ind = np.random.choice(np.arange(0,n,p))
         S = block_part[block_ind:block_ind+p]
 
-    U_S = np.zeros((n,len(S)))
-    U_S[S,range(len(S))] = np.ones(len(S))
+    U_S = coordinate_matrix(n,S,sparse)
     scale = 1./np.sqrt(n/len(S))
     return U_S, scale
 
-def random_gaussian(n,p,init=False,step=False):
+def random_gaussian(n,p,init=False,step=False,sparse=False):
     """
     Sample Gaussian basis of size p at random
 
@@ -168,7 +189,7 @@ def random_gaussian(n,p,init=False,step=False):
         return
 
     if p == n: # return identity
-        return np.eye(n), 1
+        return identity_matrix(n,sparse), 1
 
     if step: # adaptively increase basis size
         S = np.hstack((S,np.random.randn(n,p)))
@@ -176,12 +197,11 @@ def random_gaussian(n,p,init=False,step=False):
         S = np.random.randn(n,p)
 
     scale = 1./np.sqrt(S.shape[1])
-    return S, scale
+    return sp.csr_matrix(S) if sparse else S, scale
 
-# FIXME: use sparse hashing matrix directly
-def random_hashing(n,p,s=3,init=False,step=False):
+def random_hashing(n,p,s=3,init=False,step=False,sparse=False):
     """
-    Sample hashing matrix of size p at random
+    Sample s-hashing matrix of size p at random
 
     :param n: problem dimension
     :param p: basis size
@@ -193,25 +213,27 @@ def random_hashing(n,p,s=3,init=False,step=False):
         return
 
     if p == n: # return identity
-        return np.eye(n), 1
+        return identity_matrix(n,sparse), 1
 
-    if step: # adaptively increase basis size
+    if step:
        raise RuntimeError('Cannot grow hashing matrices!')
-    else: # fixed basis size
-        indices = np.zeros(s*n)
-        for j in range(n):
-            indices[s*j:s*j+s] = np.random.permutation(p)[:s] # sample without replacement
-        indptr = s*np.arange(n+1)
-        data = np.random.binomial(1,0.5,size=s*n)*2-1
-        S = csr_matrix((data,indices,indptr),shape=(n,p)).toarray()
+
+    # sample without replacement
+    indices = np.zeros(s*n)
+    for j in range(n):
+        indices[s*j:s*j+s] = np.random.permutation(p)[:s]
+    indptr = s*np.arange(n+1)
+    data = np.random.binomial(1,0.5,size=s*n)*2-1
+    S = sp.csr_matrix((data,indices,indptr),shape=(n,p))
+    if not sparse:
+       S = S.toarray()
 
     scale = 1./np.sqrt(s)
     return S, scale
 
-# FIXME: use sparse hashing matrix directly
-def random_hashing_variant(n,p,s=3,init=False,step=False):
+def random_hashing_variant(n,p,s=3,init=False,step=False,sparse=False):
     """
-    Sample variant hashing matrix of size p at random
+    Sample variant s-hashing matrix of size p at random
 
     :param n: problem dimension
     :param p: basis size
@@ -219,19 +241,22 @@ def random_hashing_variant(n,p,s=3,init=False,step=False):
     :returns: sketching matrix, sketching matrix scaling
     """
 
-    if init:  # no initialization required
+    if init: # no initialization required
         return
 
-    if p == n:  # return identity
-        return np.eye(n), 1
+    if p == n: # return identity
+        return identity_matrix(n,sparse), 1
 
-    if step:  # adaptively increase basis size
+    if step:
         raise RuntimeError('Cannot grow hashing matrices!')
-    else:  # fixed basis size
-        indices = np.random.randint(p,size=s*n) # sample with replacement
-        indptr = s*np.arange(n+1)
-        data = np.random.binomial(1,0.5,size=s*n)*2-1
-        S = csr_matrix((data,indices,indptr),shape=(n,p)).toarray()
+
+    # sample with replacement
+    indices = np.random.randint(p,size=s*n)
+    indptr = s*np.arange(n+1)
+    data = np.random.binomial(1,0.5,size=s*n)*2-1
+    S = sp.csr_matrix((data,indices,indptr),shape=(n,p))
+    if not sparse:
+       S = S.toarray()
 
     scale = 1./np.sqrt(s)
     return S, scale
@@ -274,7 +299,7 @@ class Bandit_d_Thompson_sampling:
         self.posterior_lambda = self.prior_lambda + tau * self.N  #
         self.posterior_mean = (self.summ * tau + self.prior_lambda * self.prior_mean) / self.posterior_lambda
 
-def thompson_coordinate(n,p=2,init=False,step=False):
+def thompson_coordinate(n,p=2,init=False,step=False,sparse=False):
     """
     Thompson sampling
 
@@ -286,7 +311,7 @@ def thompson_coordinate(n,p=2,init=False,step=False):
     global S, coordinate_bandits
 
     if p == n: # return full block
-        return np.eye(n), 1
+        return identity_matrix(n,sparse), 1
 
     if step:
         raise RuntimeError('Cannot grow Thompson sampling matrices!')
@@ -323,8 +348,7 @@ def thompson_coordinate(n,p=2,init=False,step=False):
         SS = np.random.choice(np.arange(n), size=2, replace=False)
     S = np.array(SS)
 
-    U_S = np.zeros((n,len(S)))
-    U_S[S,range(len(S))] = np.ones(len(S))
+    U_S = coordinate_matrix(n,S,sparse)
     scale = 1./np.sqrt(n/len(S))
     return U_S, scale
 

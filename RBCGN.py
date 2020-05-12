@@ -6,7 +6,6 @@ from trs.reg import reg, reg_update, reg_update_fancy
 from trs.creg import creg, creg_update, creg_update_fancy
 from trs.reg_approx import reg_approx
 from trs.line_search import line_search
-from scipy.sparse import csr_matrix
 import numpy as np
 import scipy.linalg as linalg
 import math as ma
@@ -69,16 +68,15 @@ def RBCGN(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, it_max=100, f
         elif sampling == 'thompson':
             update_grad(gradf(x)/f(x))
 
-        # Randomly select blocks
-        S, S_scale = sampling_func(n,p)
-
         # Assemble block-reduced matrices
-        if 'tr_approx' in algorithm: # sparse
-            J_S = J(x).dot(csr_matrix(S*S_scale))
+        if 'approx' in algorithm: # sparse
+            S, S_scale = sampling_func(n,p,sparse=True)
+            J_S = J(x).dot(S*S_scale)
             J_ST = J_S.T.tocsr()
             rx = r(x)
             gradf_S = J_ST.dot(rx)
         else: # dense
+            S, S_scale = sampling_func(n,p,sparse=False)
             J_S = J(x).dot(S*S_scale)
             rx = r(x)
             gradf_S = J_S.T.dot(rx)
@@ -119,14 +117,15 @@ def RBCGN(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, it_max=100, f
             # Increase block size
             step = min(astep,n-S.shape[1])
             #print('Increasing block size to:',S.shape[1]+step)
-            S, S_scale = sampling_func(n,step,step=True)
 
             # Assemble block-reduced matrices
-            if 'tr_approx' in algorithm: # sparse
-                J_S = J(x).dot(csr_matrix(S*S_scale))
+            if 'approx' in algorithm: # sparse
+                S, S_scale = sampling_func(n,step,step=True,sparse=True)
+                J_S = J(x).dot(S*S_scale)
                 J_ST = J_S.T.tocsr()
                 gradf_S = J_ST.dot(rx)
             else: # dense
+                S, S_scale = sampling_func(n,step,step=True,sparse=False)
                 J_S = J(x).dot(S*S_scale)
                 gradf_S = J_S.T.dot(rx)
 

@@ -2,25 +2,26 @@
 from __future__ import absolute_import, division, unicode_literals, print_function
 import numpy as np
 
-# dimensions
+# parameters
 n = 10
 p = 2
 step = 3
+sparse = False
 
 def test_generic(sample):
     sample(n,p,init=True)
 
-    S, scale = sample(n,p)
+    S, scale = sample(n,p,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p)
+    S, scale = sample(n,p,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,step=step)
+    S, scale = sample(n,p,step=step,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p)
+    S, scale = sample(n,p,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,step=step)
+    S, scale = sample(n,p,step=step,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,step=step)
+    S, scale = sample(n,p,step=step,sparse=sparse)
     print(S), print(1/scale**2)
 
 def test_random_coordinate():
@@ -51,22 +52,22 @@ def test_gauss_southwell_coordinate():
     gradf = np.arange(n)
     gauss_southwell_update_gradient(gradf)
 
-    S, scale = sample(n,p)
+    S, scale = sample(n,p,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p)
+    S, scale = sample(n,p,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,step=step)
+    S, scale = sample(n,p,step=step,sparse=sparse)
     print(S), print(1/scale**2)
 
     # gradient 2
     gradf = -1*np.arange(n)
     gauss_southwell_update_gradient(gradf)
 
-    S, scale = sample(n,p)
+    S, scale = sample(n,p,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,step=step)
+    S, scale = sample(n,p,step=step,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,step=step)
+    S, scale = sample(n,p,step=step,sparse=sparse)
     print(S), print(1/scale**2)
 
 def test_random_gaussian():
@@ -83,15 +84,15 @@ def test_random_hashing():
     sample(n,p,init=True)
 
     print('s = 1')
-    S, scale = sample(n,p,s=1)
+    S, scale = sample(n,p,s=1,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,s=1)
+    S, scale = sample(n,p,s=1,sparse=sparse)
     print(S), print(1/scale**2)
 
     print('s = 3')
-    S, scale = sample(n,p,s=3)
+    S, scale = sample(n,p,s=3,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,s=3)
+    S, scale = sample(n,p,s=3,sparse=sparse)
     print(S), print(1/scale**2)
 
 def test_random_hashing_variant():
@@ -102,15 +103,15 @@ def test_random_hashing_variant():
     sample(n,p,init=True)
 
     print('s = 1')
-    S, scale = sample(n,p,s=1)
+    S, scale = sample(n,p,s=1,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,s=1)
+    S, scale = sample(n,p,s=1,sparse=sparse)
     print(S), print(1/scale**2)
 
     print('s = 3')
-    S, scale = sample(n,p,s=3)
+    S, scale = sample(n,p,s=3,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p,s=3)
+    S, scale = sample(n,p,s=3,sparse=sparse)
     print(S), print(1/scale**2)
 
 def test_thompson_coordinate():
@@ -124,16 +125,16 @@ def test_thompson_coordinate():
     gradf = np.ones(n)
     thompson_update_gradient(gradf)
 
-    S, scale = sample(n,p)
+    S, scale = sample(n,p,sparse=sparse)
     print(S), print(1/scale**2)
-    S, scale = sample(n,p)
+    S, scale = sample(n,p,sparse=sparse)
     print(S), print(1/scale**2)
 
     # gradient 2
     gradf = -1*np.ones(n)
     thompson_update_gradient(gradf)
 
-    S, scale = sample(n,p)
+    S, scale = sample(n,p,sparse=sparse)
     print(S), print(1/scale**2)
 
 
