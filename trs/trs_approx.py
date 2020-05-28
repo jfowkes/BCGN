@@ -67,7 +67,9 @@ def trs_approx_precon(J_S, J_ST, gradf_S, delta):
     MAXITER = 2*p # Max iterations
 
     # Jacobi preconditioner
-    Minv = 1. / np.asarray((J_ST.multiply(J_ST)).sum(axis=-1)).ravel()  # 1/diag(J^TJ)
+    dJJ = np.asarray((J_ST.multiply(J_ST)).sum(axis=-1)).ravel()
+    dJJ[dJJ == 0] = 1 # handle zero on diagonal (don't scale row)
+    Minv = 1. / dJJ  # 1/diag(J^TJ)
 
     # Initialize
     s_S = np.zeros(p)
