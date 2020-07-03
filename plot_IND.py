@@ -11,6 +11,9 @@ dimen = [10000,5000,4900]
 #bsizes = [0.001,0.005,0.01,0.05,1]
 bsizes = [0.01,0.05,0.1,0.5,1]
 
+# Y-axis plot type (normal/relchange)
+YPLOT = 'normal'
+
 markers = ['o','v','^','<','>','s','p','P','H','D']
 colours = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
@@ -45,25 +48,33 @@ for ifunc, func in enumerate(funcs):
         # Load data
         Y = np.load(func+'_'+str(p)+'_plotdata.npy')
         Xt = np.load(func+'_'+str(p)+'_runtimes.npy')
-        iters, insts = Xt.shape # iterations, instances
+        iters, insts = Y.shape # iterations, instances
 
         # Generate block size data
         Xb = np.cumsum([0]+[p]*(iters-1))
+        Xi = np.arange(iters)
+
+        # Calculate (relative) change if requested
+        if YPLOT == 'relchange':
+            Y = -np.diff(Y,axis=0)/Y[:-1,:] # (f_k-f_k+1)/f_k
+            Xi = Xi[:-1]
+            Xb = Xb[:-1]
+            Xt = Xt[:-1,:]
 
         # Get no. runs (no randomness for GN)
         nruns = 1 if p == n else insts
 
-        # Plot f_k against iterations
+        # Plot objective against iterations
         plt.figure(3*ifunc+1,figsize=(24,6))
         for iseed in range(nruns):
-            plt.semilogy(np.arange(iters),Y[:,iseed],color=col,marker=markers[iseed],markevery=10)
+            plt.semilogy(Xi,Y[:,iseed],color=col,marker=markers[iseed],markevery=10)
 
-        # Plot f_k against runtime
+        # Plot objective against runtime
         plt.figure(3*ifunc+2,figsize=(24,6))
         for iseed in range(nruns):
             plt.semilogy(Xt[:,iseed],Y[:,iseed],color=col,marker=markers[iseed],markevery=10)
 
-        # Plot f_k against block size
+        # Plot objective against block size
         plt.figure(3*ifunc+3,figsize=(24,6))
         for iseed in range(nruns):
             plt.semilogy(Xb,Y[:,iseed],color=col,marker=markers[iseed],markevery=10)
@@ -81,7 +92,10 @@ for ifunc, func in enumerate(funcs):
         elif fig==3:
             plt.xlabel('Cumulative block size')
             subs = '_blocks'
-        plt.ylabel('Objective')
+        if YPLOT == 'relchange':
+            plt.ylabel('Relative Objective Change')
+        else:
+            plt.ylabel('Objective')
         plt.grid(True)
         plt.gcf().set_tight_layout(True)
 

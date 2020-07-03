@@ -58,12 +58,7 @@ def main():
                     raise ValueError('Zero block size selected!')
 
                 # Set up storage
-                if RUNTYPE == 'plot':
-                    #X = np.arange(IT_MAX+1)
-                    Ys = np.zeros((IT_MAX+1,INSTANCES))
-                else:
-                    Xs = np.zeros((IT_MAX+1,INSTANCES))
-                    Ys = np.load(func+'_'+str(p)+'_plotdata.npy')
+                data = np.zeros((IT_MAX+1,INSTANCES))
 
                 # Set RNG seeds
                 if p == n:
@@ -77,17 +72,13 @@ def main():
                     print('Run: '+str(iseed+1))
 
                     # Run RBCGN
-                    if RUNTYPE == 'plot': # Plotting
-                        Ys[:,iseed] = RBCGN_IND(r,J,x0,p,sampling=SAMPLING,kappa=kappa,astep=ASTEP,fxopt=fxopt,
-                                               it_max=IT_MAX,ftol=FTOL,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
-                    else: # runtimes
-                        Xs[:,iseed] = RBCGN_IND(r,J,x0,p,sampling=SAMPLING,kappa=kappa,astep=ASTEP,fxopt=fxopt,
-                                                    it_max=IT_MAX, ftol=FTOL,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
+                    data[:,iseed] = RBCGN_IND(r,J,x0,p,sampling=SAMPLING,kappa=kappa,astep=ASTEP,fxopt=fxopt,
+                                              it_max=IT_MAX,ftol=FTOL,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
 
-                if RUNTYPE == 'plot': # plot runs
-                    np.save(func+'_'+str(p)+'_plotdata',Ys)
-                else: # plot runtimes
-                    np.save(func+'_'+str(p)+'_runtimes',Xs)
+                if RUNTYPE == 'plot': # save plotdata
+                    np.save(func+'_'+str(p)+'_plotdata',data)
+                else: # save runtimes
+                    np.save(func+'_'+str(p)+'_runtimes',data)
 
 
 """ Test Problem Selector """
@@ -96,11 +87,7 @@ def get_test_problem(name, sifParams, algorithm):
     prob = pycutest.import_problem(name,sifParams=sifParams)
     def r(x): return prob.cons(x)
     if 'approx' in algorithm: # sparse Jacobian
-        def J(x,inds=None): 
-            if inds is None or len(inds) == len(x): # full GN
-                return prob.scons(x,gradient=True)[1].tocsr()
-            else: # sketch in n
-                return prob.scons(x,gradient=True)[1].tocsc()[:,inds].tocsr()
+        def J(x): return prob.scons(x,gradient=True)[1].tocsr()
     else: # dense Jacobian
         def J(x): return prob.cons(x,gradient=True)[1]
     x0 = prob.x0
