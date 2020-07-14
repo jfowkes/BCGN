@@ -18,7 +18,9 @@ def tr_update(f, x, s_S, S, Delta_m, delta):
 
     # Evaluate sufficient decrease
     s = S.dot(s_S)
+    warnings.simplefilter("ignore", RuntimeWarning)
     rho = (f(x) - f(x+s))/Delta_m
+    warnings.resetwarnings()
 
     # Accept trial point
     if rho >= ETA1:
@@ -52,7 +54,9 @@ def tr_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta):
     fxs = f(x+s)
     gs = np.dot(gradf_S,s_S)
     sHs = 0.5*np.dot(Js_S,Js_S)
+    warnings.simplefilter("ignore", RuntimeWarning)
     rho = (fx - fxs)/(-gs-0.5*sHs)
+    warnings.resetwarnings()
 
     # Accept trial point
     if rho >= ETA1:
