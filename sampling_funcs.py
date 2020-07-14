@@ -188,8 +188,8 @@ def random_gaussian(n,p,init=False,step=False,sparse=False):
         S = None
         return
 
-    if p == n: # return identity
-        return identity_matrix(n,sparse), 1
+    #if p == n: # return identity (GN)
+    #    return identity_matrix(n,sparse), 1
 
     if step: # adaptively increase basis size
         S = np.hstack((S,np.random.randn(n,p)))
@@ -212,8 +212,8 @@ def random_hashing(n,p,s=3,init=False,step=False,sparse=False):
     if init: # no initialization required
         return
 
-    if p == n: # return identity
-        return identity_matrix(n,sparse), 1
+    #if p == n: # return identity (GN)
+    #    return identity_matrix(n,sparse), 1
 
     if step:
        raise RuntimeError('Cannot grow hashing matrices!')
@@ -244,8 +244,8 @@ def random_hashing_variant(n,p,s=3,init=False,step=False,sparse=False):
     if init: # no initialization required
         return
 
-    if p == n: # return identity
-        return identity_matrix(n,sparse), 1
+    #if p == n: # return identity (GN)
+    #    return identity_matrix(n,sparse), 1
 
     if step:
         raise RuntimeError('Cannot grow hashing matrices!')
