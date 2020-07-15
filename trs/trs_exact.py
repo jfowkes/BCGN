@@ -17,7 +17,10 @@ def tr_update(f, x, s_S, S, Delta_m, delta):
     DELTA_MAX = 1e3
 
     # Evaluate sufficient decrease
-    s = S.dot(s_S)
+    if S is not None: # sketching in n
+        s = S.dot(s_S)
+    else: # sketching in m
+        s = s_S
     warnings.simplefilter("ignore", RuntimeWarning)
     rho = (f(x) - f(x+s))/Delta_m
     warnings.resetwarnings()
@@ -49,7 +52,10 @@ def tr_update_fancy(f, x, s_S, S, gradf_S, Js_S, delta):
     DELTA_MAX = 1e3
 
     # Evaluate sufficient decrease
-    s = S.dot(s_S)
+    if S is not None: # sketching in n
+        s = S.dot(s_S)
+    else: # sketching in m
+        s = s_S
     fx = f(x)
     fxs = f(x+s)
     gs = np.dot(gradf_S,s_S)

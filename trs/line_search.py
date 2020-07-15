@@ -47,7 +47,10 @@ def b_Armijo(S, s_S, x, f, gradf_S):
     RHO = 0.5  # in (0,1)
 
     fx = f(x)
-    s = S.dot(s_S)
+    if S is not None: # sketching in n
+        s = S.dot(s_S)
+    else: # sketching in m
+        s = s_S
     delta = C*np.dot(gradf_S,s_S)
     while f(x + alpha*s) > fx + alpha*delta and alpha > 0:
         alpha *= RHO

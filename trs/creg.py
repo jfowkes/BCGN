@@ -17,7 +17,10 @@ def creg_update(f, x, s_S, S, Delta_m, sigma):
     SIGMA_MAX = 1e3
 
     # Evaluate sufficient decrease
-    s = S.dot(s_S)
+    if S is not None: # sketching in n
+        s = S.dot(s_S)
+    else: # sketching in m
+        s = s_S
     rho = (f(x) - f(x+s))/(Delta_m - sigma*linalg.norm(s_S)**3/3)
 
     # Accept trial point
@@ -50,7 +53,10 @@ def creg_update_fancy(f, x, s_S, S, gradf_S, Js_S, sigma):
     SIGMA_MAX = 1e3
 
     # Evaluate sufficient decrease
-    s = S.dot(s_S)
+    if S is not None: # sketching in n
+        s = S.dot(s_S)
+    else: # sketching in m
+        s = s_S
     fx = f(x)
     fxs = f(x+s)
     s3 = linalg.norm(s_S)**3
