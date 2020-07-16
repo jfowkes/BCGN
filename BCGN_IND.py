@@ -2,9 +2,8 @@
 from __future__ import absolute_import, division, unicode_literals, print_function
 from RBCGN_IND import RBCGN_IND
 import numpy as np
-import sys
-sys.path.append('../pycutest/')
 import pycutest
+import sys
 
 """ Main function """
 def main():

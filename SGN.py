@@ -2,8 +2,6 @@
 from __future__ import absolute_import, division, unicode_literals, print_function
 from RSGN import RSGN
 import numpy as np
-import sys
-sys.path.append('../pycutest/')
 import pycutest
 
 """ Main function """
@@ -18,7 +16,7 @@ def main():
     # Algorithm settings
     ALGORITHM = 'tr_approx' # globalisation algorithm
     SUBPROB = 'normal' # subproblem solver
-    SAMPLING = sys.argv[1] # type of sampling
+    SAMPLING = 'coordinate' # type of sampling
     kappas = [1] # 1 - block GN, (0,1) - adaptive GN
     bsizes = [1.2] # sketch size multiplier (p = b*n)
     ASTEP = 5 # adaptive SGN step size

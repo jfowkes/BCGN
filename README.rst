@@ -14,6 +14,7 @@ Additionally, the following python packages should be installed (these will be i
 
 * NumPy 1.11 or higher (http://www.numpy.org/)
 * SciPy 0.18 or higher (http://www.scipy.org/)
+* PyCUTEst 1.0 or higher (http://jfowkes.github.io/pycutest/)
 
 Installation using pip
 ----------------------

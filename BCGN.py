@@ -6,8 +6,6 @@ import numpy as np
 import pandas as pd
 import warnings
 import os
-import sys
-sys.path.append('../pycutest/')
 import pycutest
 
 """ Main function """
