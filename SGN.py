@@ -11,7 +11,7 @@ def main():
     RUNTYPE = 'metrics' # 'plot' - plot runs, 'metrics' - plot timings
     INSTANCES = 5  # no. random runs
     IT_MAX = 100  # max iterations
-    FTOL = 3  # tolerance #FIXME: objective magnitude decrease
+    TAU = 1e-3  # objective decrease
 
     # Algorithm settings
     ALGORITHM = 'tr_approx' # globalisation algorithm
@@ -69,7 +69,7 @@ def main():
 
                     # Run RBCGN
                     data[:,iseed] = RSGN(r,J,x0,p,m,sampling=SAMPLING,kappa=kappa,astep=ASTEP,
-                                         it_max=IT_MAX,ftol=FTOL,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
+                                         it_max=IT_MAX,tau=TAU,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
 
                 if RUNTYPE == 'plot': # save plotdata
                     np.save(func+'_'+str(p)+'_'+SAMPLING.upper()+'_plotdata',data)

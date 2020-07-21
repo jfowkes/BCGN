@@ -1,11 +1,16 @@
 # Results
 results/
+old_results/
 
 # Figures
 figures/
 
 # Deprecated files
 deprecated/
+
+# Data files
+problems/*.csv
+problems/*.arff
 
 # Mac temp files
 .DS_Store

@@ -5,8 +5,21 @@ import numpy as np
 import pandas as pd
 import os
 
+# Plot font sizes
+SMALL_SIZE = 12
+MEDIUM_SIZE = 14
+BIGGER_SIZE = 16
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the x tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the y tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
 # Dataset name(s) and tolerance(s)
-basenames = ['BCGN-TR-NORMAL-' + s for s in ('COORDINATE','GAUSSIAN','GAUSS_SOUTHWELL')]
+basenames = ['BCGN-TR-NORMAL-' + s for s in ('COORDINATE','GAUSSIAN','HASHING')]
 tols = ['1e-01','1e-03','1e-05']
 
 def main():
@@ -17,8 +30,12 @@ def main():
 
             # Load data
             budget = pd.read_pickle(basename+'_'+tol+'.budget')
+            budget.columns = budget.columns.str.replace("n","d")
+            budget.columns = budget.columns.str.replace("BCGN","RSGN")
             print(budget)
             runtime = pd.read_pickle(basename+'_'+tol+'.runtime')
+            runtime.columns = runtime.columns.str.replace("n","d")
+            runtime.columns = runtime.columns.str.replace("BCGN","RSGN")
             print(runtime)
 
             #dimen = pd.read_pickle(basename+'.dimen')
@@ -28,8 +45,8 @@ def main():
 
             # Plot and save performance, budget and grad. eval. profiles
             fig_name = basename+'-'+tol
-            performance_profile(budget,'Coordinate Evals Performance Profile',fig_name+'_coordevals','prof/')
-            performance_profile(runtime,'Runtime Performance Profile',fig_name+'_runtime','prof/')
+            performance_profile(budget,None,fig_name+'_coordevals','prof/')
+            performance_profile(runtime,None,fig_name+'_runtime','prof/')
             #budget_profile(budget,np.array(dimen),fig_title,fig_name,'prof/')
             #grad_evals(budget,np.array(dimen),fig_title,fig_name,'evals/')
 

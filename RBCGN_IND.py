@@ -11,7 +11,7 @@ import scipy.linalg as linalg
 import math as ma
 import time
 
-def RBCGN_IND(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, it_max=100, ftol=1e-10, fxopt=0, runtype='plot', algorithm='tr', subproblem='normal'):
+def RBCGN_IND(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, it_max=100, tau=1e-1, fxopt=0, runtype='plot', algorithm='tr', subproblem='normal'):
     n = x0.size
 
     # Full function and gradient
@@ -50,7 +50,7 @@ def RBCGN_IND(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, it_max=10
     k = 0
     x = x0
     delta = None
-    while k < it_max and ma.fabs(ma.log10(f(x)) - ma.log10(f(x0))) < ftol: # FIXME: objective magnitude decrease
+    while k < it_max and f(x) > fxopt + tau*(f(x0)-fxopt): # objective decrease
 
         # Assemble block-reduced matrices
         if 'approx' in algorithm: # sparse

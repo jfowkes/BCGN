@@ -32,7 +32,8 @@ def main():
     SAVEFIG = False # save plot figures
 
     # Test functions
-    from problems.cutest32_zero import funcs, args, fxopts
+    from problems.cutest_nonzero import funcs, args
+    fxopts = 19*[0]
     #funcs = ['BROWNALE', 'HYDCAR20', 'YATP1NE', 'YATP2SQ']
     #args = [{'N':100}, None, {'N':10}, {'N':10}]
     #fxopts = 4*[0]
@@ -48,7 +49,7 @@ def main():
         runtimes = np.zeros((len(funcs)*INSTANCES,len(kappas)*len(bsizes),len(METRICS)))
         row_labels = [func+' Run '+str(r+1) for func in funcs for r in range(INSTANCES)]
         basename = 'BCGN-'+ALGORITHM.upper()+'-'+SUBPROB.upper()+'-'+SAMPLING.upper()#+'-'+time.strftime('%d.%m.%Y-%H:%M:%S')
-    column_labels = ['GN' if b==1 else str(b)+'n-'+('BCGN' if k==1 else str(k)+'A-BCGN') for k in kappas for b in bsizes]
+    column_labels = ['Full-Block' if b==1 else str(b)+'n-'+('BCGN' if k==1 else str(k)+'A-BCGN') for k in kappas for b in bsizes]
     dimen = np.zeros(len(funcs))
 
     # Loop over test functions
