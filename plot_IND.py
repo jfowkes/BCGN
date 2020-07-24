@@ -64,10 +64,13 @@ for ifunc, func in enumerate(funcs):
             Y = np.load(func+'_'+samp+'_'+str(p)+'_plotdata.npy')
             Xt = np.load(func+'_'+samp+'_'+str(p)+'_runtimes.npy')
         iters, insts = Y.shape # iterations, instances
+        Xi = np.arange(iters)
 
         # Generate block size data
-        Xb = np.cumsum([0]+[p]*(iters-1))
-        Xi = np.arange(iters)
+        if p == 2*n: # GN
+            Xb = np.cumsum([0]+[n]*(iters-1))
+        else: # other block sizes
+            Xb = np.cumsum([0]+[p]*(iters-1))
 
         # Calculate (relative) change if requested
         if YPLOT == 'relchange':
