@@ -18,7 +18,7 @@ Additionally, the following python packages should be installed:
 
 Installation
 ------------
-Please clone the respository and run the desired codes with Python. 'BCGN.py' is the main driver file.
+Please clone the repository and run the desired codes with Python. 'BCGN.py' is the main driver file.
 
 Bugs
 ----
