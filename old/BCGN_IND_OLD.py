@@ -1,7 +1,6 @@
-""" Block-Coordinate Gauss-Newton (Individual Functions) """
+""" Block-Coordinate Gauss-Newton (Individual Functions Old Version) """
 from __future__ import absolute_import, division, unicode_literals, print_function
-from itertools import zip_longest
-from RBCGN_IND import RBCGN_IND
+from RBCGN_IND_OLD import RBCGN_IND_OLD
 import numpy as np
 import pycutest
 import sys
@@ -12,7 +11,8 @@ def main():
     # Main parameters
     RUNTYPE = sys.argv[1] # 'plot' - plot runs, 'metrics' - plot timings
     INSTANCES = 5  # no. random runs
-    GRAD_EVALS = 100  # no. full gradient evaluations (times by n)
+    #IT_MAX = 20  # max iterations
+    IT_MAX = 100  # max iterations
     TAU = 1e-1  # objective decrease
     OUTPUT = 'results/' # output folder
 
@@ -24,11 +24,10 @@ def main():
     bsizes = [0.01,0.05,0.1,0.5,1]
     ASTEP = None # adaptive BCGN step size
 
-    # Test functions (cutest_large 882-2600 dimensional)
-    from problems.cutest_large import funcs, args, fxopts
-    #funcs = ['OSCIGRNE','ARTIF']
-    #args = [{'N':1000},{'N':1000}]
-    #fxopts = [0,0]
+    # Test functions
+    funcs = ['OSCIGRNE','ARTIF','BRATU2D']
+    args = [{'N':10000},{'N':5000},{'P':72}]
+    fxopts = [0,0,0]
 
     # Set up plotting / storage
     column_labels = ['Full-Block' if b==1 else str(b)+'n-'+('BCGN' if k==1 else str(k)+'A-BCGN') for k in kappas for b in bsizes]
@@ -57,7 +56,7 @@ def main():
                     raise ValueError('Zero block size selected!')
 
                 # Set up storage
-                data = []
+                data = np.zeros((IT_MAX+1,INSTANCES))
 
                 # Set RNG seeds
                 if p == n:
@@ -71,11 +70,8 @@ def main():
                     print('Run: '+str(iseed+1))
 
                     # Run RBCGN
-                    data += [RBCGN_IND(r,J,x0,p,sampling=SAMPLING,kappa=kappa,astep=ASTEP,fxopt=fxopt,
-                             grad_evals=GRAD_EVALS,tau=TAU,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)]
-
-                # Pad data
-                data = np.array(list(zip_longest(*data,fillvalue=np.nan)))
+                    data[:,iseed] = RBCGN_IND_OLD(r,J,x0,p,sampling=SAMPLING,kappa=kappa,astep=ASTEP,fxopt=fxopt,
+                                              it_max=IT_MAX,tau=TAU,runtype=RUNTYPE,algorithm=ALGORITHM,subproblem=SUBPROB)
 
                 if RUNTYPE == 'plot': # save plotdata
                     np.save(OUTPUT+func+'_'+SAMPLING+'_'+str(p)+'_plotdata',data)

@@ -1,4 +1,4 @@
-""" Random Block-Coordinate Gauss-Newton (Individual Functions) """
+""" Random Block-Coordinate Gauss-Newton (Individual Functions Old Version) """
 from __future__ import absolute_import, division, unicode_literals, print_function
 from trs.trs_exact import trs, tr_update, tr_update_fancy
 from trs.trs_approx import trs_approx_precon
@@ -10,19 +10,19 @@ import numpy as np
 import scipy.linalg as linalg
 import time
 
-def RBCGN_IND(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, grad_evals=100, tau=1e-1, fxopt=0, runtype='plot', algorithm='tr', subproblem='normal'):
+def RBCGN_IND_OLD(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, it_max=100, tau=1e-1, fxopt=0, runtype='plot', algorithm='tr', subproblem='normal'):
     n = x0.size
 
-    # Full function
+    # Full function and gradient
     def f(z): return 0.5*np.dot(r(z),r(z))
-    fx0 = f(x0)
+    #def gradf(z): return J(z).T.dot(r(z))
 
     if runtype == 'plot':  # plotting
-        plot_data = []
-        plot_data += [fx0]
+        plot_data = np.full(it_max+1,np.nan)
+        plot_data[0] = f(x0)
     elif runtype == 'metrics':  # runtime
-        runtime = []
-        runtime += [0]
+        runtime = np.full(it_max+1,np.nan)
+        runtime[0] = 0
     else:
         raise ValueError('Uknown runtype ' + runtype)
 
@@ -48,13 +48,14 @@ def RBCGN_IND(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, grad_eval
 
     k = 0
     x = x0
-    budget = 0
     delta = None
-    while budget < grad_evals*n and f(x) > fxopt + tau*(fx0-fxopt): # objective decrease
+    while k < it_max and f(x) > fxopt + tau*(f(x0)-fxopt): # objective decrease
 
         # Assemble block-reduced matrices
         if 'approx' in algorithm: # sparse
             S, S_scale = sampling_func(n,p,sparse=True)
+            #inds = np.argmax(S==1,axis=0).A1
+            #J_S = J(x,inds)*S_scale
             J_S = J(x).dot(S*S_scale)
             J_ST = J_S.T.tocsr()
             rx = r(x)
@@ -78,10 +79,7 @@ def RBCGN_IND(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, grad_eval
         if algorithm == 'tr':
             s_S = trs(J_S, gradf_S, delta)
         elif algorithm == 'tr_approx':
-            try:
-                s_S = trs_approx_precon(J_S, J_ST, gradf_S, delta)
-            except Exception:
-                break
+            s_S = trs_approx_precon(J_S, J_ST, gradf_S, delta)
         elif algorithm == 'reg':
             s_S, delta = reg(J_S, gradf_S, delta)
         elif algorithm == 'creg':
@@ -108,6 +106,8 @@ def RBCGN_IND(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, grad_eval
             # Assemble block-reduced matrices
             if 'approx' in algorithm: # sparse
                 S, S_scale = sampling_func(n,step,step=True,sparse=True)
+                #inds = np.argmax(S==1,axis=0).A1
+                #J_S = J(x,inds)*S_scale
                 J_S = J(x).dot(S*S_scale)
                 J_ST = J_S.T.tocsr()
                 gradf_S = J_ST.dot(rx)
@@ -144,9 +144,6 @@ def RBCGN_IND(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, grad_eval
             #stopping_rule = -Delta_m + kappa*delta*delta > 0
             #stopping_rule = linalg.norm(gradf_S) > kappa*delta
 
-        # Update coord/column budget
-        budget += S.shape[1]
-
         # Update parameter and take step
         #Delta_m = -np.dot(gradf_S,s_S) - 0.5*np.dot(Js_S,Js_S)
         if algorithm.startswith('tr'):
@@ -171,9 +168,9 @@ def RBCGN_IND(r, J, x0, p, sampling='coordinate', kappa=1, astep=None, grad_eval
 
         # function decrease metrics
         if runtype == 'metrics':
-            runtime += [time.time()-start_time]
+            runtime[k] = time.time()-start_time
         else: # plotting
-            plot_data += [f(x)]
+            plot_data[k] = f(x)
 
     # Debug output
     #monitor(k, r, x, f, delta, algorithm, gradf)

@@ -1,5 +1,4 @@
 import sys
-sys.path.append('../pycutest/')
 import pycutest
 
 func = sys.argv[1]

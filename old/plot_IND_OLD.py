@@ -5,19 +5,18 @@ from matplotlib.lines import Line2D
 import sys
 
 # Test functions
-from problems.cutest_large import funcs, dimen, fxopts
-#funcs = ['OSCIGRNE','ARTIF','BRATU2DT']
-#dimen = [1000,1000,900]
-#fxopts = [0,0,5.2862467114649865e-09]
+#funcs = ['chemotherapy','gisette']
+#dimen = [61359,5000]
+funcs = ['OSCIGRNE','ARTIF','BRATU2D']
+dimen = [10000,5000,4900]
+fxopts = [0,0,0]
 bsizes = [0.01,0.05,0.1,0.5,1]
-exclude = ['ARGLBLE','BROWNALE','VARDIMNE'] # problems to exclude
 samp = sys.argv[1] # coordinate/gaussian/hashing
 
 # Plot type (normal/relchange/normalised)
 PLOT = 'normalised'
 RESULTS = 'results/' # results folder
 OUTPUT = 'figures/'
-GRAD_EVALS = 10 # full gradient evals to plot
 
 markers = ['o','v','^','<','>','s','p','P','H','D']
 colours = plt.rcParams['axes.prop_cycle'].by_key()['color']
@@ -39,11 +38,6 @@ for ifunc, func in enumerate(funcs):
     n = dimen[ifunc]
     fxopt = fxopts[ifunc]
     print(func)
-
-    # Skip excluded problems
-    if func in exclude:
-       print('...skipping...')
-       continue
 
     # Set up plotting
     legend = []
@@ -74,8 +68,10 @@ for ifunc, func in enumerate(funcs):
         # Load data
         if p == 2*n: # load GN
             Y = np.load(RESULTS+func+'_coordinate_'+str(n)+'_plotdata.npy')
+            Xt = np.load(RESULTS+func+'_coordinate_'+str(n)+'_runtimes.npy')
         else: # other block sizes
             Y = np.load(RESULTS+func+'_'+samp+'_'+str(p)+'_plotdata.npy')
+            Xt = np.load(RESULTS+func+'_'+samp+'_'+str(p)+'_runtimes.npy')
         iters, insts = Y.shape # iterations, instances
         Xi = np.arange(iters)
 
@@ -94,51 +90,48 @@ for ifunc, func in enumerate(funcs):
             Y = -np.diff(Y,axis=0)/Y[:-1,:] # (f_k-f_k+1)/f_k
             Xi = Xi[:-1]
             Xb = Xb[:-1]
-
-        # Limit budget to GRAD_EVALS
-        if PLOT == 'normalised':
-            imax = np.max(np.argwhere(Xb <= GRAD_EVALS))
-        elif PLOT == 'relchange':
-            imax = np.max(np.argwhere(Xb*n <= GRAD_EVALS))
-        Xi = Xi[:imax+1] # includes imax entry
-        Xb = Xb[:imax+1] # includes imax entry
-        Y = Y[:imax+1,:] # includes imax entry
+            Xt = Xt[:-1,:]
 
         # Get no. runs (no randomness for GN)
         nruns = 1 if p == n or p == 2*n else insts
 
         # Plot objective against iterations
-        plt.figure(2*ifunc+1)#,figsize=(24,6))
+        plt.figure(3*ifunc+1)#,figsize=(24,6))
         for iseed in range(nruns):
             plt.semilogy(Xi,Y[:,iseed],color=col)#,marker=markers[iseed],markevery=10)
 
+        # Plot objective against runtime
+        plt.figure(3*ifunc+2)#,figsize=(24,6))
+        for iseed in range(nruns):
+            plt.semilogy(Xt[:,iseed],Y[:,iseed],color=col)#,marker=markers[iseed],markevery=10)
+
         # Plot objective against block size
-        plt.figure(2*ifunc+2)#,figsize=(24,6))
+        plt.figure(3*ifunc+3)#,figsize=(24,6))
         for iseed in range(nruns):
             plt.semilogy(Xb,Y[:,iseed],color=col)#,marker=markers[iseed],markevery=10)
 
     # Label figures
-    for fig in range(1,3):
-        plt.figure(2*ifunc+fig,figsize=(24,6))
+    for fig in range(1,4):
+        plt.figure(3*ifunc+fig,figsize=(24,6))
         if fig == 1:
             plt.xlabel('Iterations')
             subs = 'iters'
-            plt.legend(legend_lines,legend,loc='upper right')
-        elif fig==2:
+        elif fig == 2:
+            plt.xlabel('Runtime (s)')
+            subs = 'runtime'
+        elif fig==3:
             if PLOT == 'normalised':
                 plt.xlabel('Cumulative block size (units of $d$)')
             else:
                 plt.xlabel('Cumulative block size')
             subs = 'blocks'
-            plt.legend(legend_lines,legend)#,loc='upper right')
+            plt.legend(legend_lines,legend,loc='upper right')
         if PLOT == 'normalised':
             plt.ylabel('Normalised Objective')
         elif PLOT == 'relchange':
             plt.ylabel('Relative Objective Change')
         else:
             plt.ylabel('Objective')
-        plt.axhline(y=1e-1,color='k',linestyle='--') # tau cutoff
-        plt.ylim(0.08,1.2)
         plt.grid(True)
         plt.title(func)
         plt.gcf().set_tight_layout(True)
